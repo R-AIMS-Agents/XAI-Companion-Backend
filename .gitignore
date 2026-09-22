@@ -127,3 +127,5 @@ dmypy.json
 *.mp3
 /tests/logs
 /tests/cloud/logs
+
+livekit-server.exe

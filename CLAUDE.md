@@ -20,6 +20,7 @@ The deliverable is a reusable study platform, not a one-off agent. One codebase 
 ## Code style
 
 - Comments on one line. The IDE wraps them; never wrap by hand.
+- Every module, class and function carries a docstring: one sentence on what it is for, not a restatement of its name.
 - No change-history, decision-log or rationale comments. A comment says what the code does when that is not obvious.
 - Clean pipeline: one direction of data flow, one job per module, no reaching into another module's internals.
 - No abstraction before a second caller exists. Small project, keep it small.

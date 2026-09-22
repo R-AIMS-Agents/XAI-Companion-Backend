@@ -2,4 +2,21 @@
 name = "ai-companion"
 version = "0.1.0"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "pipecat-ai[livekit]>=1.11.0",
+    "livekit>=1.1.19",
+    "livekit-api>=1.2.1",
+    "loguru>=0.7.3",
+    "numpy>=2.5.3",
+    "python-dotenv>=1.2.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
