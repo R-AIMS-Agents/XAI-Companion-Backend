@@ -38,7 +38,7 @@ def _centre(root: tk.Tk):
 
 
 def choose(options: dict[str, list[str]], defaults: dict[str, str]) -> dict[str, str]:
-    """Ask for one value per field and return the picks, raising when the dialog is dismissed."""
+    """Ask for one value per field and return the picks, ending the run when the dialog is dismissed."""
     root = tk.Tk()
     root.title("AI-Companion")
     root.resizable(False, False)
@@ -84,6 +84,7 @@ def choose(options: dict[str, list[str]], defaults: dict[str, str]) -> dict[str,
     _centre(root)
     root.mainloop()
 
+    # Closing the dialog is the operator declining to start a session, which ends the run the same way argparse ends it on a bad flag.
     if not picks:
-        raise RuntimeError("Selection cancelled.")
+        raise SystemExit("Selection cancelled.")
     return picks
