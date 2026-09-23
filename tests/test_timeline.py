@@ -7,7 +7,7 @@ from pipecat.frames.frames import InputAudioRawFrame, TextFrame
 from pipecat.observers.base_observer import FramePushed
 from pipecat.processors.frame_processor import FrameDirection
 
-from agent.config import SAMPLE_RATE
+from agent.config import AUDIO_IN
 from agent.observability.timeline import Timeline
 
 MS = 1_000_000
@@ -45,7 +45,7 @@ def _audio_push(timestamp_ms: int, destination=DESTINATION) -> FramePushed:
     return FramePushed(
         source=SOURCE,
         destination=destination,
-        frame=InputAudioRawFrame(audio=AUDIO, sample_rate=SAMPLE_RATE, num_channels=1),
+        frame=InputAudioRawFrame(audio=AUDIO, sample_rate=AUDIO_IN, num_channels=1),
         direction=FrameDirection.DOWNSTREAM,
         timestamp=timestamp_ms * MS,
     )

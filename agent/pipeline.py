@@ -1,26 +1,39 @@
-"""The frame pipeline. Receives a transport and never imports one."""
+"""The frame pipeline. Receives its transport and its services, and constructs neither."""
 
-from pipecat.frames.frames import Frame, InputAudioRawFrame, OutputAudioRawFrame
+from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.pipeline.pipeline import Pipeline
-from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
+from pipecat.services.llm_service import LLMService
+from pipecat.services.stt_service import STTService
+from pipecat.services.tts_service import TTSService
 from pipecat.transports.base_transport import BaseTransport
 
-
-class Loopback(FrameProcessor):
-    """Turns received audio into sent audio. The entire agent until the models arrive."""
-
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        """Re-emit input audio as output audio and pass everything else through."""
-        await super().process_frame(frame, direction)
-        if isinstance(frame, InputAudioRawFrame):
-            frame = OutputAudioRawFrame(
-                audio=frame.audio,
-                sample_rate=frame.sample_rate,
-                num_channels=frame.num_channels,
-            )
-        await self.push_frame(frame, direction)
+from agent.prompt import SYSTEM_PROMPT
 
 
-def build(transport: BaseTransport) -> Pipeline:
+def build(
+    transport: BaseTransport, stt: STTService, llm: LLMService, tts: TTSService
+) -> Pipeline:
     """Assemble the pipeline. The only place it is assembled."""
-    return Pipeline([transport.input(), Loopback(), transport.output()])
+    context = LLMContext(messages=[{"role": "system", "content": SYSTEM_PROMPT}])
+
+    aggregators = LLMContextAggregatorPair(
+        context,
+        user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
+    )
+
+    return Pipeline(
+        [
+            transport.input(),
+            stt,
+            aggregators.user(),
+            llm,
+            tts,
+            transport.output(),
+            aggregators.assistant(),
+        ]
+    )

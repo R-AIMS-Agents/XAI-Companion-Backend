@@ -5,7 +5,7 @@ from datetime import timedelta
 from livekit import api
 from pipecat.transports.livekit.transport import LiveKitParams, LiveKitTransport
 
-from agent.config import SAMPLE_RATE, Config
+from agent.config import AUDIO_IN, AUDIO_OUT, Config
 
 AGENT_IDENTITY = "agent"
 CLIENT_IDENTITY = "unity"
@@ -33,9 +33,9 @@ def create(config: Config) -> LiveKitTransport:
     """Build the LiveKit transport the pipeline runs on."""
     params = LiveKitParams(
         audio_in_enabled=True,
-        audio_in_sample_rate=SAMPLE_RATE,
+        audio_in_sample_rate=AUDIO_IN,
         audio_out_enabled=True,
-        audio_out_sample_rate=SAMPLE_RATE,
+        audio_out_sample_rate=AUDIO_OUT,
     )
     return LiveKitTransport(
         url=config.livekit_url,
