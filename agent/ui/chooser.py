@@ -37,7 +37,7 @@ def _centre(root: tk.Tk):
     root.geometry(f"+{x}+{y}")
 
 
-def choose(options: dict[str, list[str]], defaults: dict[str, str | None]) -> dict[str, str]:
+def choose(options: dict[str, list[str]], defaults: dict[str, str]) -> dict[str, str]:
     """Ask for one value per field and return the picks, raising when the dialog is dismissed."""
     root = tk.Tk()
     root.title("AI-Companion")
@@ -54,7 +54,7 @@ def choose(options: dict[str, list[str]], defaults: dict[str, str | None]) -> di
         label = ttk.Label(frame, text=field.upper())
         label.grid(row=row, column=0, sticky="w", padx=(0, 16), pady=6)
 
-        variable = tk.StringVar(value=defaults.get(field) or choices[0])
+        variable = tk.StringVar(value=defaults[field])
         # A read-only combobox drops the radio marks that OptionMenu puts in front of every entry. A field with one option is shown, so the dialog reads as the whole session, but cannot be opened.
         box = ttk.Combobox(
             frame,

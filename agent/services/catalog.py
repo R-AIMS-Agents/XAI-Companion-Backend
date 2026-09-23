@@ -1,9 +1,11 @@
 """The set of model services a session can be assembled from, one name per implementation.
 
+One factory per provider, bound to a model by the registry beneath it, so a further model of a provider already present costs a line.
 Every factory imports its provider inside the function, so selecting one model never loads another's dependencies.
 """
 
 from collections.abc import Callable
+from functools import partial
 
 from pipecat.services.llm_service import LLMService
 from pipecat.services.stt_service import STTService
@@ -11,12 +13,8 @@ from pipecat.services.tts_service import TTSService
 
 from agent.config import Config
 
-STT_MODEL = "voxtral-mini-realtime-latest"
-LLM_MODEL = "mistral-small-latest"
-TTS_MODEL = "eleven_flash_v2_5"
-
-# ElevenLabs' premade "Rachel". Voice becomes a study condition later, at which point it moves into the session.
-TTS_VOICE = "21m00Tcm4TlvDq8ikWAM"
+# ElevenLabs' premade voices. Voice becomes a study condition later, at which point it moves into the session.
+RACHEL = "21m00Tcm4TlvDq8ikWAM"
 
 
 def _demand(value: str | None, name: str) -> str:
@@ -26,36 +24,48 @@ def _demand(value: str | None, name: str) -> str:
     return value
 
 
-def _voxtral(config: Config) -> STTService:
-    """Build Mistral's Voxtral realtime transcription service."""
+def _mistral_stt(config: Config, model: str) -> STTService:
+    """Build one of Mistral's Voxtral realtime transcription models."""
     from pipecat.services.mistral.stt import MistralSTTService
 
     return MistralSTTService(
         api_key=_demand(config.mistral_api_key, "MISTRAL_API_KEY"),
-        settings=MistralSTTService.Settings(model=STT_MODEL),
+        settings=MistralSTTService.Settings(model=model),
     )
 
 
-def _mistral_small(config: Config) -> LLMService:
-    """Build Mistral's small chat model."""
+def _mistral_llm(config: Config, model: str) -> LLMService:
+    """Build one of Mistral's chat models."""
     from pipecat.services.mistral.llm import MistralLLMService
 
     return MistralLLMService(
         api_key=_demand(config.mistral_api_key, "MISTRAL_API_KEY"),
-        settings=MistralLLMService.Settings(model=LLM_MODEL),
+        settings=MistralLLMService.Settings(model=model),
     )
 
 
-def _elevenlabs_flash(config: Config) -> TTSService:
-    """Build ElevenLabs' low latency streaming voice."""
+def _elevenlabs(config: Config, model: str, voice: str) -> TTSService:
+    """Build one of ElevenLabs' streaming voices."""
     from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 
     return ElevenLabsTTSService(
         api_key=_demand(config.elevenlabs_api_key, "ELEVENLABS_API_KEY"),
-        settings=ElevenLabsTTSService.Settings(model=TTS_MODEL, voice=TTS_VOICE),
+        settings=ElevenLabsTTSService.Settings(model=model, voice=voice),
     )
 
 
-STT: dict[str, Callable[[Config], STTService]] = {"voxtral": _voxtral}
-LLM: dict[str, Callable[[Config], LLMService]] = {"mistral-small": _mistral_small}
-TTS: dict[str, Callable[[Config], TTSService]] = {"elevenlabs-flash": _elevenlabs_flash}
+STT: dict[str, Callable[[Config], STTService]] = {
+    "voxtral": partial(_mistral_stt, model="voxtral-mini-realtime-latest"),
+}
+
+LLM: dict[str, Callable[[Config], LLMService]] = {
+    "mistral-small": partial(_mistral_llm, model="mistral-small-latest"),
+    "mistral-medium": partial(_mistral_llm, model="mistral-medium-latest"),
+}
+
+TTS: dict[str, Callable[[Config], TTSService]] = {
+    "elevenlabs-flash": partial(_elevenlabs, model="eleven_flash_v2_5", voice=RACHEL),
+}
+
+# What a run uses when the operator names nothing, stated here rather than left to the order the registries happen to be in.
+DEFAULTS = {"stt": "voxtral", "llm": "mistral-small", "tts": "elevenlabs-flash"}

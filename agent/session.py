@@ -31,7 +31,9 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the AI-Companion agent.")
     parser.add_argument("--transport", choices=sorted(TRANSPORTS), default="livekit")
     for field, registry in FIELDS.items():
-        parser.add_argument(f"--{field}", choices=sorted(registry))
+        parser.add_argument(
+            f"--{field}", choices=sorted(registry), help=f"default: {catalog.DEFAULTS[field]}"
+        )
     return parser.parse_args()
 
 
@@ -41,11 +43,10 @@ def resolve() -> Session:
     picks = {field: getattr(args, field) for field in FIELDS}
 
     # A field with a single implementation has nothing to decide, and a dialog that can only be dismissed teaches the operator to click through the one that later carries the participant.
-    for field, registry in FIELDS.items():
-        if picks[field] is None and len(registry) == 1:
-            picks[field] = next(iter(registry))
+    undecided = [f for f, pick in picks.items() if pick is None and len(FIELDS[f]) > 1]
+    picks = {field: pick or catalog.DEFAULTS[field] for field, pick in picks.items()}
 
-    if any(pick is None for pick in picks.values()):
+    if undecided:
         from agent.ui import chooser
 
         # Every field is shown once the dialog opens, so it reads as the session about to run rather than as a partial form.
