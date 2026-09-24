@@ -14,7 +14,7 @@ from pipecat.services.tts_service import TTSService
 from agent.config import Config
 
 # ElevenLabs' premade voices. Voice becomes a study condition later, at which point it moves into the session.
-RACHEL = "21m00Tcm4TlvDq8ikWAM"
+NICHALIA= "XfNU2rGpBa01ckF309OY"
 
 
 def _demand(value: str | None, name: str) -> str:
@@ -54,6 +54,13 @@ def _elevenlabs(config: Config, model: str, voice: str) -> TTSService:
     )
 
 
+def _kokoro(config: Config, voice: str) -> TTSService:
+    """Build Kokoro, a local ONNX voice that needs no credential or network access once its model is cached."""
+    from pipecat.services.kokoro.tts import KokoroTTSService
+
+    return KokoroTTSService(settings=KokoroTTSService.Settings(voice=voice))
+
+
 STT: dict[str, Callable[[Config], STTService]] = {
     "voxtral": partial(_mistral_stt, model="voxtral-mini-realtime-latest"),
 }
@@ -64,7 +71,8 @@ LLM: dict[str, Callable[[Config], LLMService]] = {
 }
 
 TTS: dict[str, Callable[[Config], TTSService]] = {
-    "elevenlabs-flash": partial(_elevenlabs, model="eleven_flash_v2_5", voice=RACHEL),
+    "elevenlabs-flash": partial(_elevenlabs, model="eleven_flash_v2_5", voice=NICHALIA),
+    "kokoro": partial(_kokoro, voice="af_heart"),
 }
 
 # What a run uses when the operator names nothing, stated here rather than left to the order the registries happen to be in.
