@@ -6,7 +6,7 @@ from loguru import logger
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.workers.runner import WorkerRunner
 
-from agent import config, join, pipeline, session, world
+from agent import config, join, livekit_server, pipeline, session, world
 from agent.config import AUDIO_IN, AUDIO_OUT
 from agent.observability.timeline import Timeline
 from agent.services import catalog
@@ -19,6 +19,8 @@ async def main():
     run = session.resolve()
     transport = session.TRANSPORTS[run.transport](cfg, run.vision)
 
+    # The server comes up after the dialog, so a cancelled selection never leaves one running.
+    server = await livekit_server.ensure(cfg)
     endpoint = await join.serve(cfg)
 
     logger.info(f"Session: stt={run.stt} llm={run.llm} tts={run.tts} vision={run.vision}")
@@ -48,6 +50,7 @@ async def main():
         await runner.run()
     finally:
         await endpoint.cleanup()
+        livekit_server.stop(server)
 
 
 if __name__ == "__main__":
