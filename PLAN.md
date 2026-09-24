@@ -48,13 +48,36 @@ agent/
 
 `services/catalog.py` is the single source of the model choices: every factory imports its provider inside the function, so selecting one model never loads another's dependencies, and a new entry reaches both the command line and the dialog at once.
 
-`session.py` resolves a run. A field with a single implementation is settled without asking, so the dialog opens only when something is genuinely undecided, and once open it shows the whole session rather than a partial form. A command line that names every model always starts headless. The dialog gains modality and participant ID in milestone 4, at which point it opens every run.
+`session.py` resolves a run. A field with a single implementation is settled without asking, so the dialog opens only when something is genuinely undecided, and once open it shows the whole session rather than a partial form. A command line that names every model always starts headless. The dialog gains modality and participant ID in milestone 5, at which point it opens every run.
 
 Defaults: Voxtral STT, `mistral-small`, ElevenLabs Flash. Turn-taking is Pipecat's default, Silero VAD to start a turn and Smart Turn v3 to end one, and is fixed rather than selectable until a condition needs to vary it.
 
 Still open: derived metrics - time to first audio, turn latency, interruption latency.
 
-## Milestone 4 - study platform
+## Milestone 4 - the world channel
+
+Everything that passes between Unity and the agent that is not audio.
+
+LiveKit carries four data paths - data packets, text and byte streams, RPC, data tracks - and Pipecat's transport wires up exactly one of them, data packets, alongside media tracks. On top of the packets Pipecat speaks RTVI, a JSON envelope `PipelineWorker` enables by default, so the agent was publishing its speech and transcript events into the room before this milestone existed. The client implements that envelope rather than a protocol of our own, and gets those events for nothing.
+
+```
+agent/world.py           # the non-audio contract with the client; the handshake to start with
+tools/client_peer.py     # headless stand-in: announces itself and publishes a camera track
+```
+
+What the Unity client has to hold up:
+
+- One reliable data packet per message, `{"label": "rtvi-ai", "type": ..., "id": ..., "data": ...}`. A reliable packet caps at 15 KiB, so anything larger than small JSON is a track or a byte stream, never a packet.
+- Unity sends `client-ready` naming the RTVI protocol version, 2.1.0. A mismatched major version is answered with an error and the session continues degraded, so the version is pinned on both sides and re-checked on every Pipecat upgrade.
+- The agent answers `bot-ready` and opens the conversation. What it opens with comes from the system prompt, so the opening line stays where the conditions vary it.
+- Unity receives, with no agent code behind them: `bot-started-speaking`, `bot-stopped-speaking`, `bot-tts-started`, `bot-tts-stopped`, `bot-tts-text` word by word, `bot-output`, `user-started-speaking`, `user-stopped-speaking`, `user-transcription`, `bot-interrupted` and `metrics`. These are the animation and interruption triggers, and nothing has to be invented for them.
+- Unity publishes its camera as an ordinary video track, low resolution and low frame rate, and leaves it open. `--vision` decides whether the agent subscribes. Frames are held and never reach the LLM on their own: fetching one is a tool call, and waits for the milestone that gives the agent tools.
+
+Game events and streamed user state are RTVI `client-message`s, aggregated on the Pipecat side, so what the agent perceives stays in the platform rather than in the client. None are defined yet; the first one earns the module that names them.
+
+Still open: audio input starts on its own today (`audio_in_stream_on_start`). Once the Unity client sends `client-ready`, that flips, so the microphone is gated on the handshake and no participant audio is processed before the scene is up.
+
+## Milestone 5 - study platform
 
 Session identity, study configuration, per-session JSONL logs. Transcripts and events only, never audio.
 Conditions are configuration: interaction modality, explanation behaviour, embodiment, voice.

@@ -6,7 +6,7 @@ from loguru import logger
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.workers.runner import WorkerRunner
 
-from agent import config, pipeline, session
+from agent import config, pipeline, session, world
 from agent.config import AUDIO_IN, AUDIO_OUT
 from agent.observability.timeline import Timeline
 from agent.services import catalog
@@ -18,9 +18,9 @@ async def main():
     # The environment is checked before the dialog opens, so a missing key is not discovered after the operator has chosen.
     cfg = config.load()
     run = session.resolve()
-    transport = session.TRANSPORTS[run.transport](cfg)
+    transport = session.TRANSPORTS[run.transport](cfg, run.vision)
 
-    logger.info(f"Session: stt={run.stt} llm={run.llm} tts={run.tts}")
+    logger.info(f"Session: stt={run.stt} llm={run.llm} tts={run.tts} vision={run.vision}")
     logger.info(f"Room '{cfg.room}' on {cfg.livekit_url}")
     logger.info(f"Client join token:\n{livekit.client_token(cfg)}")
 
@@ -38,6 +38,8 @@ async def main():
         observers=[Timeline()],
         idle_timeout_secs=None,
     )
+
+    world.attach(worker)
 
     runner = WorkerRunner()
     await runner.add_workers(worker)

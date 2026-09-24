@@ -180,3 +180,15 @@ def test_an_unknown_transport_is_rejected(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["run.py", "--transport", "carrier-pigeon"])
     with pytest.raises(SystemExit):
         session.resolve()
+
+
+def test_vision_is_on_unless_the_command_line_takes_it_away(monkeypatch, catalogue):
+    """Only some conditions give the agent eyes, so the camera subscription is one flag and not a code change."""
+    catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
+    _expect_no_dialog(monkeypatch)
+
+    monkeypatch.setattr(sys, "argv", ["run.py"])
+    assert session.resolve().vision is True
+
+    monkeypatch.setattr(sys, "argv", ["run.py", "--no-vision"])
+    assert session.resolve().vision is False

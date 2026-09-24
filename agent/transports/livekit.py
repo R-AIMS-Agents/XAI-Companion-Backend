@@ -29,13 +29,15 @@ def client_token(config: Config) -> str:
     return _join_token(config, CLIENT_IDENTITY)
 
 
-def create(config: Config) -> LiveKitTransport:
+def create(config: Config, vision: bool) -> LiveKitTransport:
     """Build the LiveKit transport the pipeline runs on."""
     params = LiveKitParams(
         audio_in_enabled=True,
         audio_in_sample_rate=AUDIO_IN,
         audio_out_enabled=True,
         audio_out_sample_rate=AUDIO_OUT,
+        # The client's camera track is subscribed and held, never consumed on its own: a frame reaches the LLM only when something asks for one.
+        video_in_enabled=vision,
     )
     return LiveKitTransport(
         url=config.livekit_url,

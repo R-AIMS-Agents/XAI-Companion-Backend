@@ -10,7 +10,7 @@ from agent.config import Config
 from agent.services import catalog
 from agent.transports import livekit
 
-TRANSPORTS: dict[str, Callable[[Config], BaseTransport]] = {"livekit": livekit.create}
+TRANSPORTS: dict[str, Callable[[Config, bool], BaseTransport]] = {"livekit": livekit.create}
 
 # The catalog is the single source of the model choices, so a new entry reaches the command line and the dialog at once.
 FIELDS = {"stt": catalog.STT, "llm": catalog.LLM, "tts": catalog.TTS}
@@ -21,6 +21,7 @@ class Session:
     """The choices one run is made with, settled before anything is built."""
 
     transport: str
+    vision: bool
     stt: str
     llm: str
     tts: str
@@ -30,6 +31,12 @@ def _parse_args() -> argparse.Namespace:
     """Read the command line, leaving unset any model the operator did not name."""
     parser = argparse.ArgumentParser(description="Run the AI-Companion agent.")
     parser.add_argument("--transport", choices=sorted(TRANSPORTS), default="livekit")
+    parser.add_argument(
+        "--vision",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="subscribe to the client's camera track (default: on)",
+    )
     for field, registry in FIELDS.items():
         parser.add_argument(
             f"--{field}", choices=sorted(registry), help=f"default: {catalog.DEFAULTS[field]}"
@@ -53,4 +60,4 @@ def resolve() -> Session:
         options = {field: sorted(registry) for field, registry in FIELDS.items()}
         picks = chooser.choose(options, picks)
 
-    return Session(transport=args.transport, **picks)
+    return Session(transport=args.transport, vision=args.vision, **picks)
