@@ -3,7 +3,7 @@
 ## Stack
 
 Pipecat pipeline, LiveKit as transport, Unity client in a separate project.
-LiveKit server runs self-hosted on the dev machine. Join tokens are printed on startup and pasted into Unity for now.
+LiveKit server runs self-hosted on the dev machine, started by the agent when nothing is answering on its port yet and left alone when something is. The agent serves LiveKit's standard token endpoint, so the client fetches where the room is and the token to enter it with rather than being handed one by hand.
 
 Audio enters at 16 kHz, because Silero VAD, Smart Turn and the STT all require it, and leaves at 48 kHz, which is native for both ElevenLabs and LiveKit.
 
@@ -62,12 +62,14 @@ LiveKit carries four data paths - data packets, text and byte streams, RPC, data
 
 ```
 agent/world.py           # the non-audio contract with the client; the handshake to start with
-tools/client_peer.py     # headless stand-in: announces itself and publishes a camera track
+agent/join.py            # where the client asks for a room and a token before any of that
+tools/client_peer.py     # headless stand-in: joins through the endpoint, announces itself, publishes a camera track
 ```
 
 What the Unity client has to hold up:
 
 - One reliable data packet per message, `{"label": "rtvi-ai", "type": ..., "id": ..., "data": ...}`. A reliable packet caps at 15 KiB, so anything larger than small JSON is a track or a byte stream, never a packet.
+- Unity fetches its connection details from `POST /getToken`, LiveKit's standard token endpoint format: a body naming the room and identity it wants, or an empty one to take the configured defaults, answered with `server_url` and `participant_token`. The Unity SDK's `TokenSourceEndpoint` speaks this already, so nothing is parsed by hand.
 - Unity sends `client-ready` naming the RTVI protocol version, 2.1.0. A mismatched major version is answered with an error and the session continues degraded, so the version is pinned on both sides and re-checked on every Pipecat upgrade.
 - The agent answers `bot-ready` and opens the conversation. What it opens with comes from the system prompt, so the opening line stays where the conditions vary it.
 - Unity receives, with no agent code behind them: `bot-started-speaking`, `bot-stopped-speaking`, `bot-tts-started`, `bot-tts-stopped`, `bot-tts-text` word by word, `bot-output`, `user-started-speaking`, `user-stopped-speaking`, `user-transcription`, `bot-interrupted` and `metrics`. These are the animation and interruption triggers, and nothing has to be invented for them.
