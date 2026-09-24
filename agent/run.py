@@ -6,11 +6,10 @@ from loguru import logger
 from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.workers.runner import WorkerRunner
 
-from agent import config, pipeline, session, world
+from agent import config, join, pipeline, session, world
 from agent.config import AUDIO_IN, AUDIO_OUT
 from agent.observability.timeline import Timeline
 from agent.services import catalog
-from agent.transports import livekit
 
 
 async def main():
@@ -20,9 +19,11 @@ async def main():
     run = session.resolve()
     transport = session.TRANSPORTS[run.transport](cfg, run.vision)
 
+    endpoint = await join.serve(cfg)
+
     logger.info(f"Session: stt={run.stt} llm={run.llm} tts={run.tts} vision={run.vision}")
     logger.info(f"Room '{cfg.room}' on {cfg.livekit_url}")
-    logger.info(f"Client join token:\n{livekit.client_token(cfg)}")
+    logger.info(f"Client connection details on port {join.PORT} at {join.PATH}")
 
     worker = PipelineWorker(
         pipeline.build(
@@ -43,7 +44,10 @@ async def main():
 
     runner = WorkerRunner()
     await runner.add_workers(worker)
-    await runner.run()
+    try:
+        await runner.run()
+    finally:
+        await endpoint.cleanup()
 
 
 if __name__ == "__main__":

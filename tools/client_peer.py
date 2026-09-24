@@ -1,4 +1,4 @@
-"""Headless stand-in for the Unity client: announces itself over RTVI and publishes a camera track.
+"""Headless stand-in for the Unity client: fetches its own connection details, announces itself over RTVI and publishes a camera track.
 
 Proves the milestone 4 channel without Unity. What this peer sends is what the Unity client has to send, and what it counts is what the Unity client gets for free.
 """
@@ -10,13 +10,15 @@ import sys
 import time
 from collections import Counter
 
+import aiohttp
 from livekit import rtc
 from loguru import logger
 from pipecat.processors.frameworks.rtvi.models import MESSAGE_LABEL, PROTOCOL_VERSION
 
-from agent import config
-from agent.config import Config
-from agent.transports.livekit import AGENT_IDENTITY, client_token
+from agent.join import PATH, PORT
+from agent.transports.livekit import AGENT_IDENTITY
+
+ENDPOINT = f"http://localhost:{PORT}{PATH}"
 
 WIDTH = 320
 HEIGHT = 240
@@ -24,6 +26,14 @@ BAR_WIDTH = 24
 TRACK_NAME = "camera"
 AGENT_WAIT_SECS = 30.0
 BOT_READY_WAIT_SECS = 30.0
+
+
+async def _connection_details() -> dict:
+    """Ask the agent where the room is and for a token to enter it with, the way the Unity client's TokenSourceEndpoint does."""
+    async with aiohttp.ClientSession() as session:
+        async with session.post(ENDPOINT) as response:
+            response.raise_for_status()
+            return await response.json()
 
 
 def _client_ready() -> bytes:
@@ -64,7 +74,7 @@ async def _publish_frames(source: rtc.VideoSource, seconds: float, fps: float) -
     return step
 
 
-async def _run(cfg: Config, seconds: float, fps: float) -> tuple[Counter, int]:
+async def _run(seconds: float, fps: float) -> tuple[Counter, int]:
     """Join the room as the client, announce, publish video, and count what the agent sends back."""
     room = rtc.Room()
     seen: Counter = Counter()
@@ -93,8 +103,9 @@ async def _run(cfg: Config, seconds: float, fps: float) -> tuple[Counter, int]:
             logger.info(f"bot-ready: {message.get('data')}")
             bot_ready.set()
 
-    await room.connect(cfg.livekit_url, client_token(cfg))
-    logger.info(f"Joined room '{cfg.room}' on {cfg.livekit_url}")
+    details = await _connection_details()
+    await room.connect(details["server_url"], details["participant_token"])
+    logger.info(f"Joined {details['server_url']} as '{room.local_participant.identity}'")
     if AGENT_IDENTITY in room.remote_participants:
         agent_present.set()
 
@@ -151,7 +162,11 @@ def _parse_args() -> argparse.Namespace:
 async def main():
     """Run one handshake and one stretch of video."""
     args = _parse_args()
-    seen, frames = await _run(config.load(), args.seconds, args.fps)
+    try:
+        seen, frames = await _run(args.seconds, args.fps)
+    except aiohttp.ClientError as error:
+        logger.error(f"No connection details from {ENDPOINT} ({error}). Is the agent running?")
+        sys.exit(1)
     if not _report(seen, frames):
         sys.exit(1)
 

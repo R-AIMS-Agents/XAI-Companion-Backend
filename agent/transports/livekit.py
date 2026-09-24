@@ -12,21 +12,16 @@ CLIENT_IDENTITY = "unity"
 TOKEN_TTL = timedelta(hours=12)
 
 
-def _join_token(config: Config, identity: str) -> str:
-    """Mint a room access token for one identity, signed with the server's key pair."""
+def join_token(config: Config, identity: str, room: str, name: str) -> str:
+    """Mint a room access token for one identity in one room, signed with the server's key pair."""
     return (
         api.AccessToken(config.livekit_api_key, config.livekit_api_secret)
         .with_identity(identity)
-        .with_name(identity)
+        .with_name(name)
         .with_ttl(TOKEN_TTL)
-        .with_grants(api.VideoGrants(room_join=True, room=config.room))
+        .with_grants(api.VideoGrants(room_join=True, room=room))
         .to_jwt()
     )
-
-
-def client_token(config: Config) -> str:
-    """Mint the join token the Unity client uses to enter the same room."""
-    return _join_token(config, CLIENT_IDENTITY)
 
 
 def create(config: Config, vision: bool) -> LiveKitTransport:
@@ -41,7 +36,7 @@ def create(config: Config, vision: bool) -> LiveKitTransport:
     )
     return LiveKitTransport(
         url=config.livekit_url,
-        token=_join_token(config, AGENT_IDENTITY),
+        token=join_token(config, AGENT_IDENTITY, config.room, AGENT_IDENTITY),
         room_name=config.room,
         params=params,
     )

@@ -7,6 +7,7 @@ name = "ai-companion"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "aiohttp" },
     { name = "livekit" },
     { name = "livekit-api" },
     { name = "loguru" },
@@ -23,6 +24,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "aiohttp", specifier = ">=3.14.3" },
     { name = "livekit", specifier = ">=1.1.19" },
     { name = "livekit-api", specifier = ">=1.2.1" },
     { name = "loguru", specifier = ">=0.7.3" },
