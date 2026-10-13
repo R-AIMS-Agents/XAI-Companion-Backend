@@ -8,12 +8,14 @@ from pipecat.workers.runner import WorkerRunner
 
 from agent import config, join, livekit_server, pipeline, session, world
 from agent.config import AUDIO_IN, AUDIO_OUT
+from agent.observability import debug_log
 from agent.observability.timeline import Timeline
 from agent.services import catalog
 
 
 async def main():
     """Run the agent until interrupted."""
+    log_path = debug_log.start()
     # The environment is checked before the dialog opens, so a missing key is not discovered after the operator has chosen.
     cfg = config.load()
     run = session.resolve()
@@ -23,6 +25,7 @@ async def main():
     server = await livekit_server.ensure(cfg)
     endpoint = await join.serve(cfg)
 
+    logger.info(f"Debug log at {log_path}")
     logger.info(f"Session: stt={run.stt} llm={run.llm} tts={run.tts} vision={run.vision}")
     logger.info(f"Room '{cfg.room}' on {cfg.livekit_url}")
     logger.info(f"Client connection details on port {join.PORT} at {join.PATH}")

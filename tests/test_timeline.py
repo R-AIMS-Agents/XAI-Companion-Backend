@@ -1,4 +1,4 @@
-"""The Timeline observer: control frames logged as they happen, audio frames summarised per window."""
+"""The Timeline observer: each control frame logged once as it first moves, audio frames not at all."""
 
 import pytest
 from loguru import logger
@@ -28,7 +28,7 @@ class _Processor:
 
 SOURCE = _Processor("source")
 DESTINATION = _Processor("destination")
-OTHER = _Processor("other")
+NEXT = _Processor("next")
 
 
 @pytest.fixture
@@ -40,21 +40,15 @@ def logs() -> list[str]:
     logger.remove(sink_id)
 
 
-def _audio_push(timestamp_ms: int, destination=DESTINATION) -> FramePushed:
-    """Build one audio frame transfer, at a chosen moment and on a chosen hop."""
+def _audio_push(timestamp_ms: int) -> FramePushed:
+    """Build one audio frame transfer at a chosen moment."""
     return FramePushed(
         source=SOURCE,
-        destination=destination,
+        destination=DESTINATION,
         frame=InputAudioRawFrame(audio=AUDIO, sample_rate=AUDIO_IN, num_channels=1),
         direction=FrameDirection.DOWNSTREAM,
         timestamp=timestamp_ms * MS,
     )
-
-
-async def _push_all(timeline: Timeline, pushes: list[FramePushed]):
-    """Feed a run of frame transfers to the observer in order."""
-    for push in pushes:
-        await timeline.on_push_frame(push)
 
 
 async def test_control_frames_are_logged_immediately(logs):
@@ -74,55 +68,21 @@ async def test_control_frames_are_logged_immediately(logs):
     assert "0.250s" in logs[0]
 
 
-async def test_audio_stays_silent_until_the_window_closes(logs):
-    """Audio is far too fast to log frame by frame, so nothing is printed mid-window."""
-    timeline = Timeline(window_secs=1.0)
-    await _push_all(timeline, [_audio_push(ms) for ms in range(100, 1100, 100)])
+async def test_audio_frames_are_not_logged(logs):
+    """Audio frames pass through without leaving a line."""
+    timeline = Timeline()
+    for ms in range(100, 1100, 100):
+        await timeline.on_push_frame(_audio_push(ms))
     assert logs == []
 
 
-async def test_window_summarises_count_and_gaps(logs):
-    """One summary per window, carrying the frame count and the largest gap in it."""
-    timeline = Timeline(window_secs=1.0)
-    timestamps = [100, 200, 500, 600, 700, 800, 900, 1000, 1100]
-    await _push_all(timeline, [_audio_push(ms) for ms in timestamps])
-
+async def test_a_frame_is_logged_only_at_its_first_hop(logs):
+    """The same frame crossing further hops adds no further lines."""
+    timeline = Timeline()
+    frame = TextFrame(text="hello")
+    for source, destination, ms in [(SOURCE, DESTINATION, 100), (DESTINATION, NEXT, 110)]:
+        await timeline.on_push_frame(
+            FramePushed(source=source, destination=destination, frame=frame, direction=FrameDirection.DOWNSTREAM, timestamp=ms * MS)
+        )
     assert len(logs) == 1
-    summary = logs[0]
-    assert f"x{len(timestamps)}" in summary
-    assert f"{len(timestamps) * len(AUDIO)} B" in summary
-    assert "max 300.0 ms" in summary
-    assert "mean 125.0 ms" in summary
-
-
-async def test_the_window_is_the_largest_gap_not_the_count(logs):
-    """A single long silence is what a stutter sounds like, so it must survive the summary."""
-    timeline = Timeline(window_secs=1.0)
-    await _push_all(timeline, [_audio_push(100), _audio_push(110), _audio_push(1100)])
-    assert "max 990.0 ms" in logs[0]
-
-
-async def test_each_hop_is_summarised_separately(logs):
-    """Two hops carrying the same audio are two timelines, not one."""
-    timeline = Timeline(window_secs=1.0)
-    for ms in [100, 600, 1100]:
-        await _push_all(timeline, [_audio_push(ms), _audio_push(ms, destination=OTHER)])
-
-    assert len(logs) == 2
-    assert any("source -> destination" in line for line in logs)
-    assert any("source -> other" in line for line in logs)
-
-
-async def test_windows_keep_coming_after_the_first(logs):
-    """The observer keeps summarising for as long as the run lasts."""
-    timeline = Timeline(window_secs=1.0)
-    await _push_all(timeline, [_audio_push(ms) for ms in range(100, 3101, 100)])
-    assert len(logs) == 3
-
-
-async def test_the_first_gap_of_the_run_is_counted(logs):
-    """A run whose clock starts at zero still records the gap between its first two frames."""
-    timeline = Timeline(window_secs=1.0)
-    await _push_all(timeline, [_audio_push(0), _audio_push(100), _audio_push(1000)])
-    assert "max 900.0 ms" in logs[0]
-    assert "mean 500.0 ms" in logs[0]
+    assert "source -> destination" in logs[0]
