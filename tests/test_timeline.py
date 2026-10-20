@@ -28,7 +28,6 @@ class _Processor:
 
 SOURCE = _Processor("source")
 DESTINATION = _Processor("destination")
-NEXT = _Processor("next")
 
 
 @pytest.fixture
@@ -76,13 +75,6 @@ async def test_audio_frames_are_not_logged(logs):
     assert logs == []
 
 
-async def test_a_frame_is_logged_only_at_its_first_hop(logs):
-    """The same frame crossing further hops adds no further lines."""
-    timeline = Timeline()
-    frame = TextFrame(text="hello")
-    for source, destination, ms in [(SOURCE, DESTINATION, 100), (DESTINATION, NEXT, 110)]:
-        await timeline.on_push_frame(
-            FramePushed(source=source, destination=destination, frame=frame, direction=FrameDirection.DOWNSTREAM, timestamp=ms * MS)
-        )
-    assert len(logs) == 1
-    assert "source -> destination" in logs[0]
+def test_a_frame_is_observed_only_at_its_first_hop():
+    """The observer asks pipecat to report each frame at its first push only, so further hops add no lines."""
+    assert Timeline().observe_every_push is False
