@@ -34,6 +34,13 @@ def _mistral_stt(config: Config, model: str) -> STTService:
     )
 
 
+def _whisper(config: Config, model: str) -> STTService:
+    """Build a local faster-whisper model that detects the spoken language per utterance and needs no credential once cached."""
+    from pipecat.services.whisper.stt import WhisperSTTService
+
+    return WhisperSTTService(settings=WhisperSTTService.Settings(model=model, language=None))
+
+
 def _mistral_llm(config: Config, model: str) -> LLMService:
     """Build one of Mistral's chat models."""
     from pipecat.services.mistral.llm import MistralLLMService
@@ -63,6 +70,7 @@ def _kokoro(config: Config, voice: str) -> TTSService:
 
 STT: dict[str, Callable[[Config], STTService]] = {
     "voxtral": partial(_mistral_stt, model="voxtral-mini-realtime-latest"),
+    "whisper-turbo": partial(_whisper, model="deepdml/faster-whisper-large-v3-turbo-ct2"),
 }
 
 LLM: dict[str, Callable[[Config], LLMService]] = {
