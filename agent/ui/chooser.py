@@ -2,6 +2,7 @@
 
 import sys
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import ttk
 
 import sv_ttk
@@ -37,19 +38,45 @@ def _centre(root: tk.Tk):
     root.geometry(f"+{x}+{y}")
 
 
-def choose(options: dict[str, list[str]], defaults: dict[str, str]) -> dict[str, str]:
-    """Ask for one value per field and return the picks, ending the run when the dialog is dismissed."""
+def choose(
+    languages: dict[str, str],
+    options: dict[str, list[str]],
+    defaults: dict[str, str],
+    suggested: list[str],
+    problem: Callable[[dict[str, str]], str | None],
+) -> dict[str, str]:
+    """Ask for the participant, the language and one value per field and return the picks, ending the run when the dialog is dismissed."""
     root = tk.Tk()
     root.title("AI-Companion")
     root.resizable(False, False)
+    # Kept above every other window, so the dialog cannot get lost behind the terminal or the Unity editor.
+    root.attributes("-topmost", True)
     sv_ttk.set_theme("dark", root)
 
     frame = ttk.Frame(root, padding=24)
     frame.grid()
     frame.columnconfigure(1, weight=1)
 
-    variables: dict[str, tk.StringVar] = {}
-    for row, (field, choices) in enumerate(options.items()):
+    ttk.Label(frame, text="Participant ID").grid(row=0, column=0, sticky="w", padx=(0, 16), pady=6)
+    participant = tk.StringVar(value=defaults["participant"])
+    ttk.Entry(frame, textvariable=participant, width=12).grid(row=0, column=1, sticky="ew", pady=6)
+    for column, suggestion in enumerate(suggested, start=2):
+        ttk.Button(frame, text=f"Use '{suggestion}'", command=lambda s=suggestion: participant.set(s)).grid(
+            row=0, column=column, sticky="ew", padx=(8, 0), pady=6
+        )
+    span = len(suggested) + 1
+
+    ttk.Label(frame, text="Language").grid(row=1, column=0, sticky="w", padx=(0, 16), pady=6)
+    language = tk.StringVar(value=defaults["language"])
+    buttons = ttk.Frame(frame)
+    buttons.grid(row=1, column=1, columnspan=span, sticky="w", pady=6)
+    for column, (code, name) in enumerate(languages.items()):
+        ttk.Radiobutton(buttons, text=name, value=code, variable=language).grid(
+            row=0, column=column, padx=(0, 16)
+        )
+
+    variables: dict[str, tk.StringVar] = {"participant": participant, "language": language}
+    for row, (field, choices) in enumerate(options.items(), start=2):
         # Field names are shown in caps so an acronym and a word sit together without one looking shouted.
         label = ttk.Label(frame, text=field.upper())
         label.grid(row=row, column=0, sticky="w", padx=(0, 16), pady=6)
@@ -63,19 +90,26 @@ def choose(options: dict[str, list[str]], defaults: dict[str, str]) -> dict[str,
             state="readonly" if len(choices) > 1 else "disabled",
             width=22,
         )
-        box.grid(row=row, column=1, sticky="ew", pady=6)
+        box.grid(row=row, column=1, columnspan=span, sticky="ew", pady=6)
         variables[field] = variable
+
+    message = ttk.Label(frame, foreground="#ff6b6b", wraplength=320)
+    message.grid(row=len(options) + 2, column=0, columnspan=span + 1, sticky="w", pady=(12, 0))
 
     # Values are read before the interpreter is torn down, because a Tk variable cannot be read afterwards.
     picks: dict[str, str] = {}
 
     def accept():
-        """Keep the current picks and close the dialog."""
-        picks.update({field: variable.get() for field, variable in variables.items()})
+        """Keep the current picks and close the dialog, or say what is wrong with them and stay open."""
+        current = {field: variable.get() for field, variable in variables.items()}
+        if error := problem(current):
+            message.configure(text=error)
+            return
+        picks.update(current)
         root.destroy()
 
     button = ttk.Button(frame, text="Start", command=accept, style="Accent.TButton")
-    button.grid(row=len(options), column=0, columnspan=2, pady=(20, 0), sticky="ew")
+    button.grid(row=len(options) + 3, column=0, columnspan=span + 1, pady=(12, 0), sticky="ew")
 
     # Focus rests on the button, so a read-only combobox does not open the dialog with a selection highlight on it.
     button.focus_set()

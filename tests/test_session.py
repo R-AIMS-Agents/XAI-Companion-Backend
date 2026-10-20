@@ -7,10 +7,14 @@ import pytest
 
 import agent.ui
 from agent import session
+from agent.prompt import LANGUAGES
 from agent.services import catalog
 
+# Participant and language always need an answer, so a headless command line names both.
+HEADLESS = ["--participant", "P04", "--language", "en"]
 
-def _stub(config):
+
+def _stub(config, language=None):
     """Stand in for a service factory, which resolution never calls."""
     return None
 
@@ -39,6 +43,7 @@ def catalogue(monkeypatch):
         monkeypatch.setattr(
             catalog, "DEFAULTS", {field: names[-1] for field, names in registries.items()}
         )
+        monkeypatch.setattr(catalog, "TTS_LANGUAGES", dict.fromkeys(registries["tts"], set(LANGUAGES)))
 
     return use
 
@@ -49,25 +54,37 @@ def _expect_no_dialog(monkeypatch):
     monkeypatch.delattr(agent.ui, "chooser", raising=False)
 
 
+def _accept(asked=None):
+    """Stand in for the dialog: record what it was asked and accept the preselection, as a person hitting Start would."""
+
+    def fake_choose(languages, options, defaults, suggested, problem):
+        if asked is not None:
+            asked.update(languages=languages, options=options, defaults=defaults, suggested=suggested)
+        return {**defaults, "participant": defaults["participant"] or suggested[0]}
+
+    return fake_choose
+
+
 def test_a_complete_command_line_needs_no_dialog(monkeypatch, catalogue):
-    """Naming every model resolves the session without ever importing the chooser, which is the headless path."""
+    """Naming the participant, the language and every model resolves the session without importing the chooser, which is the headless path."""
     catalogue(stt=["voxtral", "whisper"], llm=["small", "medium"], tts=["flash", "kokoro"])
     monkeypatch.setattr(
-        sys, "argv", ["run.py", "--stt", "whisper", "--llm", "medium", "--tts", "kokoro"]
+        sys, "argv", ["run.py", *HEADLESS, "--stt", "whisper", "--llm", "medium", "--tts", "kokoro"]
     )
     _expect_no_dialog(monkeypatch)
 
     run = session.resolve()
 
     assert (run.stt, run.llm, run.tts) == ("whisper", "medium", "kokoro")
+    assert (run.participant, run.language) == ("P04", "en")
     assert run.transport == "livekit"
     assert "agent.ui.chooser" not in sys.modules
 
 
 def test_a_sole_implementation_is_settled_without_asking(monkeypatch, catalogue):
-    """A field with one implementation has nothing to decide, so a bare command line opens no dialog."""
+    """A model field with one implementation has nothing to decide, so naming participant and language is enough to stay headless."""
     catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
-    monkeypatch.setattr(sys, "argv", ["run.py"])
+    monkeypatch.setattr(sys, "argv", ["run.py", *HEADLESS])
     _expect_no_dialog(monkeypatch)
 
     run = session.resolve()
@@ -76,18 +93,28 @@ def test_a_sole_implementation_is_settled_without_asking(monkeypatch, catalogue)
     assert "agent.ui.chooser" not in sys.modules
 
 
+@pytest.mark.parametrize("missing", ["--participant", "--language"])
+def test_a_missing_participant_or_language_opens_the_dialog(monkeypatch, catalogue, missing):
+    """Even with every model settled, a session cannot start without knowing who it is for and in which language."""
+    catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
+    argv = list(HEADLESS)
+    del argv[argv.index(missing) : argv.index(missing) + 2]
+    monkeypatch.setattr(sys, "argv", ["run.py", *argv])
+    asked = {}
+    monkeypatch.setattr("agent.ui.chooser.choose", _accept(asked))
+
+    session.resolve()
+
+    assert asked, "the dialog was not opened"
+
+
 def test_the_dialog_opens_on_the_stated_default(monkeypatch, catalogue):
     """The default is the one named in the catalog, not whichever implementation happens to sort first."""
     catalogue(stt=["voxtral"], llm=["small"], tts=["aaa-sorts-first", "the-default"])
     monkeypatch.setattr(sys, "argv", ["run.py"])
     asked = {}
+    monkeypatch.setattr("agent.ui.chooser.choose", _accept(asked))
 
-    def fake_choose(options, defaults):
-        """Accept whatever the dialog was preselected to, as a person hitting Start would."""
-        asked["defaults"] = defaults
-        return dict(defaults)
-
-    monkeypatch.setattr("agent.ui.chooser.choose", fake_choose)
     run = session.resolve()
 
     assert asked["defaults"]["tts"] == "the-default"
@@ -97,15 +124,12 @@ def test_the_dialog_opens_on_the_stated_default(monkeypatch, catalogue):
 def test_the_real_catalog_defaults_to_the_documented_stack(monkeypatch):
     """The stack a bare run uses is the one the project settled on, whatever else the catalog gains."""
     monkeypatch.setattr(sys, "argv", ["run.py"])
+    monkeypatch.setattr("agent.ui.chooser.choose", _accept())
 
-    def fake_choose(options, defaults):
-        """Accept the preselection, standing in for a person hitting Start."""
-        return dict(defaults)
-
-    monkeypatch.setattr("agent.ui.chooser.choose", fake_choose)
     run = session.resolve()
 
     assert (run.stt, run.llm, run.tts) == ("voxtral", "mistral-small", "elevenlabs-flash")
+    assert run.language == "en"
 
 
 @pytest.mark.parametrize("field", ["stt", "llm", "tts"])
@@ -114,31 +138,37 @@ def test_every_default_is_an_implementation_the_catalog_holds(field):
     assert catalog.DEFAULTS[field] in session.FIELDS[field]
 
 
-def test_a_real_choice_opens_the_dialog(monkeypatch, catalogue):
-    """A second implementation makes one field a genuine choice, and that is what the dialog is for."""
+def test_the_dialog_shows_the_whole_session(monkeypatch, catalogue):
+    """Every field arrives preselected and every field is offered, so the dialog reads as the session about to run."""
     catalogue(stt=["voxtral"], llm=["small"], tts=["flash", "kokoro"])
     monkeypatch.setattr(sys, "argv", ["run.py"])
+    monkeypatch.setattr(session.roster, "suggest", lambda: "P07")
     asked = {}
+    monkeypatch.setattr("agent.ui.chooser.choose", _accept(asked))
 
-    def fake_choose(options, defaults):
-        """Record what the chooser was asked and answer with the last option of each field."""
-        asked["options"] = options
-        asked["defaults"] = defaults
-        return {field: choices[-1] for field, choices in options.items()}
-
-    monkeypatch.setattr("agent.ui.chooser.choose", fake_choose)
     run = session.resolve()
 
-    # Every field arrives preselected and every field is offered, so the dialog reads as the whole session.
-    assert asked["defaults"] == {"stt": "voxtral", "llm": "small", "tts": "kokoro"}
-    assert asked["options"] == {"stt": ["voxtral"], "llm": ["small"], "tts": ["flash", "kokoro"]}
-    assert run.tts == "kokoro"
+    assert asked["defaults"] == {
+        "participant": "",
+        "language": "en",
+        "stt": "voxtral",
+        "llm": "small",
+        "tts": "kokoro",
+    }
+    assert asked["languages"] == LANGUAGES
+    assert asked["options"] == {
+        "stt": ["voxtral"],
+        "llm": ["small"],
+        "tts": ["flash", "kokoro"],
+    }
+    assert asked["suggested"] == ["P07", "test"]
+    assert run.participant == "P07"
 
 
 def test_naming_the_only_real_choice_settles_it(monkeypatch, catalogue):
-    """Naming the one field that has a choice leaves nothing to ask, so the dialog stays shut."""
+    """Naming the one model field that has a choice leaves nothing to ask, so the dialog stays shut."""
     catalogue(stt=["voxtral"], llm=["small"], tts=["flash", "kokoro"])
-    monkeypatch.setattr(sys, "argv", ["run.py", "--tts", "kokoro"])
+    monkeypatch.setattr(sys, "argv", ["run.py", *HEADLESS, "--tts", "kokoro"])
     _expect_no_dialog(monkeypatch)
 
     run = session.resolve()
@@ -163,7 +193,7 @@ def test_the_command_line_offers_exactly_what_the_catalog_holds(field, registry,
 
 def test_every_catalogued_model_can_be_named(monkeypatch):
     """Every entry in the real catalog is reachable from the command line, whichever provider it came from."""
-    argv = ["run.py"]
+    argv = ["run.py", *HEADLESS]
     for field, registry in session.FIELDS.items():
         argv += [f"--{field}", sorted(registry)[-1]]
     monkeypatch.setattr(sys, "argv", argv)
@@ -187,8 +217,63 @@ def test_vision_is_on_unless_the_command_line_takes_it_away(monkeypatch, catalog
     catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
     _expect_no_dialog(monkeypatch)
 
-    monkeypatch.setattr(sys, "argv", ["run.py"])
+    monkeypatch.setattr(sys, "argv", ["run.py", *HEADLESS])
     assert session.resolve().vision is True
 
-    monkeypatch.setattr(sys, "argv", ["run.py", "--no-vision"])
+    monkeypatch.setattr(sys, "argv", ["run.py", *HEADLESS, "--no-vision"])
     assert session.resolve().vision is False
+
+
+def test_the_participant_id_is_stored_in_its_canonical_form(monkeypatch, catalogue):
+    """'p4' and 'P04' name the same participant, so both are written as P04 and land in the same log series."""
+    catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
+    monkeypatch.setattr(sys, "argv", ["run.py", "--participant", "p4", "--language", "en"])
+    _expect_no_dialog(monkeypatch)
+
+    assert session.resolve().participant == "P04"
+
+
+def test_an_id_that_cannot_name_a_file_is_refused_on_the_command_line(monkeypatch, catalogue):
+    """The ID becomes the log's file name, so one that cannot be a file name never starts a session."""
+    catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
+    monkeypatch.setattr(sys, "argv", ["run.py", "--participant", "a/b", "--language", "en"])
+    _expect_no_dialog(monkeypatch)
+
+    with pytest.raises(SystemExit):
+        session.resolve()
+
+
+def test_a_voice_that_cannot_speak_the_language_is_refused(monkeypatch):
+    """Kokoro has no German voice, so a German session with Kokoro stops at the command line rather than speaking English."""
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["run.py", "--participant", "P04", "--language", "de", "--stt", "voxtral", "--llm", "mistral-small", "--tts", "kokoro"],
+    )
+    _expect_no_dialog(monkeypatch)
+
+    with pytest.raises(SystemExit):
+        session.resolve()
+
+
+def test_the_dialog_is_given_the_same_check(monkeypatch, catalogue):
+    """The dialog refuses what the command line refuses, so the two ways in cannot disagree about what makes a session."""
+    catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
+    monkeypatch.setattr(sys, "argv", ["run.py"])
+    asked = {}
+
+    def fake_choose(languages, options, defaults, suggested, problem):
+        asked["problem"] = problem
+        return {**defaults, "participant": suggested[0]}
+
+    monkeypatch.setattr("agent.ui.chooser.choose", fake_choose)
+    session.resolve()
+
+    assert asked["problem"] is session.problem
+
+
+def test_every_voice_states_which_session_languages_it_speaks():
+    """A voice missing from the language table would fail at startup, and a language it claims must be one a session can be held in."""
+    assert catalog.TTS_LANGUAGES.keys() == catalog.TTS.keys()
+    for languages in catalog.TTS_LANGUAGES.values():
+        assert languages <= LANGUAGES.keys()

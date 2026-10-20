@@ -48,11 +48,11 @@ agent/
 
 `services/catalog.py` is the single source of the model choices: every factory imports its provider inside the function, so selecting one model never loads another's dependencies, and a new entry reaches both the command line and the dialog at once.
 
-`session.py` resolves a run. A field with a single implementation is settled without asking, so the dialog opens only when something is genuinely undecided, and once open it shows the whole session rather than a partial form. A command line that names every model always starts headless. The dialog gains modality and participant ID in milestone 5, at which point it opens every run.
+`session.py` resolves a run. A model with a single implementation is settled without asking, so the dialog opens only when something is genuinely undecided, and once open it shows the whole session rather than a partial form. A command line that names the participant, the language and every model always starts headless.
 
 Defaults: Voxtral STT, `mistral-small`, ElevenLabs Flash. Turn-taking is Pipecat's default, Silero VAD to start a turn and Smart Turn v3 to end one, and is fixed rather than selectable until a condition needs to vary it.
 
-Still open: derived metrics - time to first audio, turn latency, interruption latency.
+The derived metrics - time to first audio, turn latency, interruption latency - are written to the study log, see milestone 5.
 
 ## Milestone 4 - the world channel
 
@@ -77,6 +77,8 @@ What the Unity client has to hold up:
 
 Game events and streamed user state are RTVI `client-message`s, aggregated on the Pipecat side, so what the agent perceives stays in the platform rather than in the client. None are defined yet; the first one earns the module that names them.
 
+One client-message is defined: a measurement, sent as `{"t": "metric", "d": {...}}`. Its data is written to the study log as sent, so Unity adds a metric without a backend change. By convention `d` carries a `name` naming the metric.
+
 Still open: audio input starts on its own today (`audio_in_stream_on_start`). Once the Unity client sends `client-ready`, that flips, so the microphone is gated on the handshake and no participant audio is processed before the scene is up.
 
 ## Milestone 5 - study platform
@@ -85,3 +87,20 @@ Session identity, study configuration, per-session JSONL logs. Transcripts and e
 Conditions are configuration: interaction modality, explanation behaviour, embodiment, voice.
 
 The system prompt carries the explanation behaviour and the interaction script, so `prompt.py` grows from a placeholder into the largest part of this milestone.
+
+```
+agent/roster.py                     # participant IDs already used, and which file a session is written to
+agent/observability/study_log.py    # the study log
+agent/observability/llm_exchange.py # every LLM call in full, into the debug log
+```
+
+Every session belongs to a participant ID and is held in one language, English or German. An ID is any string that can name a file; `P` and a number is the numbered form the suggestion counts, stored with at least two digits. The dialog opens on every run unless the command line names both, and suggests the next ID: one past the highest number any study log has used. A participant's first session is `P04`, a re-run after a failure `P04-2`, and an existing log is never reopened. The dialog also offers `test` for trying the platform out. Like every ID that is not numbered, its sessions are logged as `test`, `test-2` and on, and never counted by the suggestion.
+
+The language reaches the system prompt, the STT and the TTS. Each voice states the languages it speaks, and a session asking a voice for one it cannot speak is refused before it starts. Kokoro speaks English only.
+
+Two logs per session, both named after it:
+
+- `logs/study/<session>.jsonl` is the record the analysis reads. One line per event, flushed as it is written. `session_start` names the participant, language, models and code version; then `client_ready`, `user_transcript` and `assistant_message` as they entered the LLM context, `tool_call`, `turn_started` and `turn_ended` with duration, interruption and usage, `response_latency` with its `latency_breakdown` stage by stage, `first_speech_latency` once, `interruption_latency`, and `client_metric` from Unity; `session_end` closes it with totals.
+- `logs/debug/<session>.jsonl` is for debugging: every log record of the run, every frame once, and every LLM call with the full context it was given, its tool calls and its output.
+
+Still open: conditions and the balancing of participants across them, once the next study defines them. A demo condition that skips the study, once there is something to skip.

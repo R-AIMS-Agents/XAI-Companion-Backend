@@ -1,4 +1,4 @@
-"""The frame pipeline. Receives its transport and its services, and constructs neither."""
+"""The frame pipeline. Receives its transport, its services and its prompt, and constructs none of them."""
 
 from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
 from pipecat.audio.vad.silero import SileroVADAnalyzer
@@ -16,15 +16,18 @@ from pipecat.turns.user_mute import MuteUntilFirstBotCompleteUserMuteStrategy
 from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
-from agent.prompt import SYSTEM_PROMPT
 from agent.vad_fallback import VADFallback, VADFallbackStopStrategy
 
 
 def build(
-    transport: BaseTransport, stt: STTService, llm: LLMService, tts: TTSService
+    transport: BaseTransport,
+    stt: STTService,
+    llm: LLMService,
+    tts: TTSService,
+    system_prompt: str,
 ) -> Pipeline:
     """Assemble the pipeline. The only place it is assembled."""
-    context = LLMContext(messages=[{"role": "system", "content": SYSTEM_PROMPT}])
+    context = LLMContext(messages=[{"role": "system", "content": system_prompt}])
 
     aggregators = LLMContextAggregatorPair(
         context,

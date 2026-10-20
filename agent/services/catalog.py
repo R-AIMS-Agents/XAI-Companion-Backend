@@ -10,6 +10,7 @@ from functools import partial
 from pipecat.services.llm_service import LLMService
 from pipecat.services.stt_service import STTService
 from pipecat.services.tts_service import TTSService
+from pipecat.transcriptions.language import Language
 
 from agent.config import Config
 
@@ -24,21 +25,21 @@ def _demand(value: str | None, name: str) -> str:
     return value
 
 
-def _mistral_stt(config: Config, model: str) -> STTService:
+def _mistral_stt(config: Config, language: Language, model: str) -> STTService:
     """Build one of Mistral's Voxtral realtime transcription models."""
     from pipecat.services.mistral.stt import MistralSTTService
 
     return MistralSTTService(
         api_key=_demand(config.mistral_api_key, "MISTRAL_API_KEY"),
-        settings=MistralSTTService.Settings(model=model),
+        settings=MistralSTTService.Settings(model=model, language=language),
     )
 
 
-def _whisper(config: Config, model: str) -> STTService:
-    """Build a local faster-whisper model that detects the spoken language per utterance and needs no credential once cached."""
+def _whisper(config: Config, language: Language, model: str) -> STTService:
+    """Build a local faster-whisper model that needs no credential once cached."""
     from pipecat.services.whisper.stt import WhisperSTTService
 
-    return WhisperSTTService(settings=WhisperSTTService.Settings(model=model, language=None))
+    return WhisperSTTService(settings=WhisperSTTService.Settings(model=model, language=language))
 
 
 def _mistral_llm(config: Config, model: str) -> LLMService:
@@ -51,24 +52,24 @@ def _mistral_llm(config: Config, model: str) -> LLMService:
     )
 
 
-def _elevenlabs(config: Config, model: str, voice: str) -> TTSService:
+def _elevenlabs(config: Config, language: Language, model: str, voice: str) -> TTSService:
     """Build one of ElevenLabs' streaming voices."""
     from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
 
     return ElevenLabsTTSService(
         api_key=_demand(config.elevenlabs_api_key, "ELEVENLABS_API_KEY"),
-        settings=ElevenLabsTTSService.Settings(model=model, voice=voice),
+        settings=ElevenLabsTTSService.Settings(model=model, voice=voice, language=language),
     )
 
 
-def _kokoro(config: Config, voice: str) -> TTSService:
+def _kokoro(config: Config, language: Language, voice: str) -> TTSService:
     """Build Kokoro, a local ONNX voice that needs no credential or network access once its model is cached."""
     from pipecat.services.kokoro.tts import KokoroTTSService
 
-    return KokoroTTSService(settings=KokoroTTSService.Settings(voice=voice))
+    return KokoroTTSService(settings=KokoroTTSService.Settings(voice=voice, language=language))
 
 
-STT: dict[str, Callable[[Config], STTService]] = {
+STT: dict[str, Callable[[Config, Language], STTService]] = {
     "voxtral": partial(_mistral_stt, model="voxtral-mini-realtime-latest"),
     "whisper-turbo": partial(_whisper, model="deepdml/faster-whisper-large-v3-turbo-ct2"),
 }
@@ -78,10 +79,13 @@ LLM: dict[str, Callable[[Config], LLMService]] = {
     "mistral-medium": partial(_mistral_llm, model="mistral-medium-latest"),
 }
 
-TTS: dict[str, Callable[[Config], TTSService]] = {
+TTS: dict[str, Callable[[Config, Language], TTSService]] = {
     "elevenlabs-flash": partial(_elevenlabs, model="eleven_flash_v2_5", voice=NICHALIA),
     "kokoro": partial(_kokoro, voice="af_heart"),
 }
+
+# The session languages each voice can speak. Kokoro has no German voice, so a German session refuses it rather than speaking English.
+TTS_LANGUAGES = {"elevenlabs-flash": {"en", "de"}, "kokoro": {"en"}}
 
 # What a run uses when the operator names nothing, stated here rather than left to the order the registries happen to be in.
 DEFAULTS = {"stt": "voxtral", "llm": "mistral-small", "tts": "elevenlabs-flash"}

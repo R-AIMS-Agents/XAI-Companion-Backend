@@ -1,23 +1,25 @@
-"""Routes every log record of one run to its own JSONL file under logs/debug, for debugging the pipeline after the fact."""
+"""Routes every log record of one session to its own JSONL file under logs/debug, named like its study log, for debugging the pipeline after the fact."""
 
 import json
 import sys
 import traceback
-from datetime import datetime
 from pathlib import Path
 
 from loguru import logger
 
 DIRECTORY = Path(__file__).resolve().parent.parent.parent / "logs" / "debug"
 
+# Tags of records too frequent or too long for the console, which go to the file only.
+_QUIET = {"timeline", "llm"}
 
-def start() -> Path:
-    """Open this run's debug file and keep Timeline records out of the console; returns the file's path."""
+
+def start(session: str) -> Path:
+    """Open this session's debug file and keep the frame and LLM records out of the console; returns the file's path."""
     DIRECTORY.mkdir(parents=True, exist_ok=True)
-    path = DIRECTORY / f"{datetime.now():%Y-%m-%d_%H-%M-%S}.jsonl"
+    path = DIRECTORY / f"{session}.jsonl"
 
     logger.remove()
-    logger.add(sys.stderr, level="DEBUG", filter=lambda record: "timeline" not in record["extra"])
+    logger.add(sys.stderr, level="DEBUG", filter=lambda record: not _QUIET & record["extra"].keys())
     logger.add(path, level="DEBUG", format=_format, encoding="utf-8", enqueue=True)
     return path
 
