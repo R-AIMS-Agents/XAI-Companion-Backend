@@ -16,6 +16,7 @@ The deliverable is a reusable study platform, not a one-off agent. One codebase 
 - Report honestly: what ran, what failed, what was skipped and why.
 - Commit only when told. No chat URLs in commit messages.
 - Stay in scope. No unrequested extras, refactors or files.
+- Be honest in your response.
 
 ## Code style
 
