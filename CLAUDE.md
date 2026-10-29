@@ -1,4 +1,4 @@
-# AI-Companion
+# XAI-Companion
 
 Backend for an Intelligent Virtual Agent: an embodied AI human in VR/AR.
 Pipecat orchestrates the AI models, LiveKit carries audio and data to a Unity client that lives in a separate project folder.
