@@ -1,0 +1,63 @@
+"""The lab tutor: a reaction for every event the client sends, and a prompt that names the equipment as the participant will hear it."""
+
+import pytest
+
+from agent.config import LANGUAGES
+from agent.game import Reaction
+from agent.scenarios import SCENARIOS, lab
+
+# Every event the Unity client sends, as its contract lists them.
+EVENTS = {
+    "state",
+    "recipe_loaded",
+    "flask_placed",
+    "wrong_flask",
+    "ingredient_fetched",
+    "wrong_ingredient",
+    "ingredient_poured",
+    "combined",
+    "wrong_mixture",
+    "flask_emptied",
+    "placed_on_station",
+    "wrong_station",
+    "finished",
+    "stored",
+    "game_complete",
+}
+
+
+def test_every_event_the_client_sends_has_a_reaction():
+    """An event missing from the table would fall back to speaking, so the table and the contract are held to the same list."""
+    assert lab.REACTIONS.keys() == EVENTS
+
+
+def test_the_first_recipe_loads_silently_and_later_ones_do_not():
+    """The opening already introduced the first compound, so only later ones are announced."""
+    assert lab.reaction({"event": "recipe_loaded", "recipe": {"index": 0}}) is Reaction.SILENT
+    assert lab.reaction({"event": "recipe_loaded", "recipe": {"index": 1}}) is Reaction.WHEN_IDLE
+
+
+def test_finishing_the_protocol_interrupts():
+    """The end of the game matters more than whatever the tutor was saying."""
+    assert lab.reaction({"event": "game_complete"}) is Reaction.INTERRUPT
+
+
+def test_an_unknown_event_is_reacted_to_rather_than_ignored():
+    """A new event from the client still reaches the participant, if more talkatively than intended."""
+    assert lab.reaction({"event": "something_new"}) is Reaction.WHEN_IDLE
+
+
+@pytest.mark.parametrize("language, names", [("en", ["round-bottom flask", "ice bath"]), ("de", ["Rundkolben", "Eisbad", "du"])])
+def test_the_prompt_names_the_equipment_in_the_session_language(language, names):
+    """The tutor names equipment as the participant hears it, and holds the session's language."""
+    prompt = lab.system_prompt(language)
+
+    assert f"Speak {LANGUAGES[language]}." in prompt
+    for name in names:
+        assert name in prompt
+
+
+def test_the_lab_opens_with_the_llm_rather_than_a_greeting():
+    """The opening needs the first recipe, so the lab has no fixed greeting and opens on the first snapshot."""
+    assert SCENARIOS["lab"].greeting is None
+    assert SCENARIOS["lab"].reaction is lab.reaction

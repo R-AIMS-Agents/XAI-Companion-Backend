@@ -6,12 +6,12 @@ import tkinter as tk
 import pytest
 
 import agent.ui
-from agent import session
-from agent.prompt import LANGUAGES
+from agent import scenarios, session
+from agent.config import LANGUAGES
 from agent.services import catalog
 
-# Participant and language always need an answer, so a headless command line names both.
-HEADLESS = ["--participant", "P04", "--language", "en"]
+# Participant and language always need an answer, and there is more than one scenario, so a headless command line names all three.
+HEADLESS = ["--participant", "P04", "--language", "en", "--scenario", "chat"]
 
 
 def _stub(config, language=None):
@@ -151,12 +151,14 @@ def test_the_dialog_shows_the_whole_session(monkeypatch, catalogue):
     assert asked["defaults"] == {
         "participant": "",
         "language": "en",
+        "scenario": scenarios.DEFAULT,
         "stt": "voxtral",
         "llm": "small",
         "tts": "kokoro",
     }
     assert asked["languages"] == LANGUAGES
     assert asked["options"] == {
+        "scenario": sorted(scenarios.SCENARIOS),
         "stt": ["voxtral"],
         "llm": ["small"],
         "tts": ["flash", "kokoro"],
@@ -227,7 +229,7 @@ def test_vision_is_on_unless_the_command_line_takes_it_away(monkeypatch, catalog
 def test_the_participant_id_is_stored_in_its_canonical_form(monkeypatch, catalogue):
     """'p4' and 'P04' name the same participant, so both are written as P04 and land in the same log series."""
     catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
-    monkeypatch.setattr(sys, "argv", ["run.py", "--participant", "p4", "--language", "en"])
+    monkeypatch.setattr(sys, "argv", ["run.py", "--participant", "p4", "--language", "en", "--scenario", "chat"])
     _expect_no_dialog(monkeypatch)
 
     assert session.resolve().participant == "P04"
@@ -236,7 +238,7 @@ def test_the_participant_id_is_stored_in_its_canonical_form(monkeypatch, catalog
 def test_an_id_that_cannot_name_a_file_is_refused_on_the_command_line(monkeypatch, catalogue):
     """The ID becomes the log's file name, so one that cannot be a file name never starts a session."""
     catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
-    monkeypatch.setattr(sys, "argv", ["run.py", "--participant", "a/b", "--language", "en"])
+    monkeypatch.setattr(sys, "argv", ["run.py", "--participant", "a/b", "--language", "en", "--scenario", "chat"])
     _expect_no_dialog(monkeypatch)
 
     with pytest.raises(SystemExit):
@@ -248,7 +250,7 @@ def test_a_voice_that_cannot_speak_the_language_is_refused(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["run.py", "--participant", "P04", "--language", "de", "--stt", "voxtral", "--llm", "mistral-small", "--tts", "kokoro"],
+        ["run.py", "--participant", "P04", "--language", "de", "--scenario", "chat", "--stt", "voxtral", "--llm", "mistral-small", "--tts", "kokoro"],
     )
     _expect_no_dialog(monkeypatch)
 
@@ -277,3 +279,33 @@ def test_every_voice_states_which_session_languages_it_speaks():
     assert catalog.TTS_LANGUAGES.keys() == catalog.TTS.keys()
     for languages in catalog.TTS_LANGUAGES.values():
         assert languages <= LANGUAGES.keys()
+
+
+def test_the_default_scenario_is_one_the_registry_holds():
+    """A default naming a scenario that does not exist would fail only at startup."""
+    assert scenarios.DEFAULT in scenarios.SCENARIOS
+
+
+def test_a_choice_of_scenarios_opens_the_dialog_unless_one_is_named(monkeypatch, catalogue):
+    """With more than one scenario the operator has to pick, and naming one on the command line is that pick."""
+    catalogue(stt=["voxtral"], llm=["small"], tts=["flash"])
+    monkeypatch.setattr(scenarios, "SCENARIOS", {"chat": None, "lab": None})
+    monkeypatch.setattr(scenarios, "DEFAULT", "chat")
+    asked = {}
+    monkeypatch.setattr("agent.ui.chooser.choose", _accept(asked))
+
+    monkeypatch.setattr(sys, "argv", ["run.py", "--participant", "P04", "--language", "en"])
+    session.resolve()
+    assert asked["options"]["scenario"] == ["chat", "lab"]
+
+    asked.clear()
+    monkeypatch.setattr(sys, "argv", ["run.py", "--participant", "P04", "--language", "en", "--scenario", "lab"])
+    assert session.resolve().scenario == "lab"
+    assert not asked, "the dialog was opened for a scenario the command line named"
+
+
+def test_an_unknown_scenario_is_rejected(monkeypatch):
+    """The scenario flag is held to the registry, like the models."""
+    monkeypatch.setattr(sys, "argv", ["run.py", "--scenario", "not-a-scenario"])
+    with pytest.raises(SystemExit):
+        session.resolve()

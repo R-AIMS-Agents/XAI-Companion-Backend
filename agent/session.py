@@ -6,9 +6,8 @@ from dataclasses import dataclass
 
 from pipecat.transports.base_transport import BaseTransport
 
-from agent import roster
-from agent.config import Config
-from agent.prompt import LANGUAGES
+from agent import roster, scenarios
+from agent.config import LANGUAGES, Config
 from agent.services import catalog
 from agent.transports import livekit
 
@@ -28,6 +27,7 @@ class Session:
     vision: bool
     participant: str
     language: str
+    scenario: str
     stt: str
     llm: str
     tts: str
@@ -45,6 +45,9 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--participant", help="pseudonymous participant ID, such as P04")
     parser.add_argument("--language", choices=list(LANGUAGES), help=f"default: {DEFAULT_LANGUAGE}")
+    parser.add_argument(
+        "--scenario", choices=sorted(scenarios.SCENARIOS), help=f"default: {scenarios.DEFAULT}"
+    )
     for field, registry in FIELDS.items():
         parser.add_argument(
             f"--{field}", choices=sorted(registry), help=f"default: {catalog.DEFAULTS[field]}"
@@ -67,17 +70,25 @@ def resolve() -> Session:
     args = parser.parse_args()
     picks = {field: getattr(args, field) for field in FIELDS}
 
-    # A model with a single implementation has nothing to decide, but participant and language always need an answer.
+    # A model or scenario with a single entry has nothing to decide, but participant and language always need an answer.
     undecided = [f for f, pick in picks.items() if pick is None and len(FIELDS[f]) > 1]
     undecided += [f for f in ("participant", "language") if getattr(args, f) is None]
+    if args.scenario is None and len(scenarios.SCENARIOS) > 1:
+        undecided.append("scenario")
     picks = {field: pick or catalog.DEFAULTS[field] for field, pick in picks.items()}
-    picks = {"participant": args.participant or "", "language": args.language or DEFAULT_LANGUAGE, **picks}
+    picks = {
+        "participant": args.participant or "",
+        "language": args.language or DEFAULT_LANGUAGE,
+        "scenario": args.scenario or scenarios.DEFAULT,
+        **picks,
+    }
 
     if undecided:
         from agent.ui import chooser
 
         # Every field is shown once the dialog opens, so it reads as the session about to run rather than as a partial form.
-        options = {field: sorted(registry) for field, registry in FIELDS.items()}
+        options = {"scenario": sorted(scenarios.SCENARIOS)}
+        options |= {field: sorted(registry) for field, registry in FIELDS.items()}
         picks = chooser.choose(LANGUAGES, options, picks, [roster.suggest(), roster.TEST], problem)
     elif error := problem(picks):
         parser.error(error)

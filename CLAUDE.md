@@ -6,7 +6,7 @@ Pipecat orchestrates the AI models, LiveKit carries audio and data to a Unity cl
 Research context: transparent, responsible and explainable agents for XR, evaluated in user studies.
 The deliverable is a reusable study platform, not a one-off agent. One codebase serves every study; conditions are configuration, never copies of the folder.
 
-`ARCHITECTURE-SUGGESTION.md` is a proposal carried over from the previous project. It is not ratified and nothing in it is binding.
+`ARCHITECTURE.md` describes the data flow, the configuration seams, the Unity contract and the log formats. A change to any of these updates it in the same change.
 
 ## Working agreement
 

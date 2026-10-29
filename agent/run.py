@@ -9,8 +9,9 @@ from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.transcriptions.language import Language
 from pipecat.workers.runner import WorkerRunner
 
-from agent import config, join, livekit_server, pipeline, prompt, roster, session, world
+from agent import config, join, livekit_server, pipeline, roster, scenarios, session, world
 from agent.config import AUDIO_IN, AUDIO_OUT
+from agent.game import Game
 from agent.observability import debug_log
 from agent.observability.llm_exchange import LLMExchange
 from agent.observability.study_log import StudyLog
@@ -42,18 +43,20 @@ async def main():
     study_path = roster.session_path(run.participant)
     log_path = debug_log.start(study_path.stem)
     study = StudyLog(study_path)
-    study.write(
-        "session_start",
-        participant=run.participant,
-        session=study_path.stem,
-        language=run.language,
-        transport=run.transport,
-        vision=run.vision,
-        stt=run.stt,
-        llm=run.llm,
-        tts=run.tts,
-        commit=_commit(),
-    )
+    # Written to the study log and sent to the client from this one dict, so the two cannot disagree about what the session is.
+    settings = {
+        "participant": run.participant,
+        "session": study_path.stem,
+        "language": run.language,
+        "scenario": run.scenario,
+        "transport": run.transport,
+        "vision": run.vision,
+        "stt": run.stt,
+        "llm": run.llm,
+        "tts": run.tts,
+        "commit": _commit(),
+    }
+    study.write("session_start", **settings)
 
     server = None
     endpoint = None
@@ -67,19 +70,20 @@ async def main():
         logger.info(f"Study log at {study_path}")
         logger.info(f"Debug log at {log_path}")
         logger.info(
-            f"Session {study_path.stem}: language={run.language} stt={run.stt} llm={run.llm} tts={run.tts} vision={run.vision}"
+            f"Session {study_path.stem}: language={run.language} scenario={run.scenario} stt={run.stt} llm={run.llm} tts={run.tts} vision={run.vision}"
         )
         logger.info(f"Room '{cfg.room}' on {cfg.livekit_url}")
         logger.info(f"Client connection details on port {join.PORT} at {join.PATH}")
 
         language = Language(run.language)
+        scenario = scenarios.SCENARIOS[run.scenario]
         worker = PipelineWorker(
             pipeline.build(
                 transport,
                 catalog.STT[run.stt](cfg, language),
                 catalog.LLM[run.llm](cfg),
                 catalog.TTS[run.tts](cfg, language),
-                prompt.system_prompt(run.language),
+                scenario.system_prompt(run.language),
             ),
             params=PipelineParams(
                 audio_in_sample_rate=AUDIO_IN,
@@ -91,7 +95,12 @@ async def main():
             idle_timeout_secs=None,
         )
 
-        world.attach(worker, prompt.GREETING[run.language], study)
+        game = None
+        if scenario.reaction is not None:
+            game = Game(scenario.reaction, worker.queue_frames, study)
+            worker.add_observer(game)
+        greeting = scenario.greeting[run.language] if scenario.greeting else None
+        world.attach(worker, greeting, study, settings, game)
 
         runner = WorkerRunner()
         await runner.add_workers(worker)

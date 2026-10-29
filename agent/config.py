@@ -11,6 +11,9 @@ AUDIO_IN = 16000
 # LiveKit publishes Opus at 48 kHz and ElevenLabs can synthesise at 48 kHz, so the way out stays native.
 AUDIO_OUT = 48000
 
+# The languages a session can be held in, by the code the services take, with the name the prompt uses for each.
+LANGUAGES = {"en": "English", "de": "German"}
+
 
 @dataclass(frozen=True)
 class Config:

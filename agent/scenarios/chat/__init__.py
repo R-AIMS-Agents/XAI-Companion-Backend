@@ -1,7 +1,6 @@
-"""What the agent is told it is. Placeholder until the study's interaction and explanation behaviour are designed."""
+"""Open conversation with no task. Placeholder until a study gives the agent something to be about."""
 
-# The languages a session can be held in, by the code the services take, with the name the prompt uses for each.
-LANGUAGES = {"en": "English", "de": "German"}
+from agent.config import LANGUAGES
 
 _PERSONA = "You are a helpful virtual human. Answer briefly and conversationally, in plain spoken language."
 
