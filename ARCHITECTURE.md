@@ -12,6 +12,8 @@ The pipeline runs in one direction:
 transport in -> STT -> VADFallback -> user aggregator -> LLM -> TTS -> transport out -> assistant aggregator
 ```
 
+![Inside the agent: the frame pipeline, the LLM context both aggregators write and the LLM reads, client messages through world.py to Game, and the observers that write the two logs.](docs/pipeline.svg)
+
 `pipeline.py` is the only place it is assembled, and receives its transport, services and system prompt rather than constructing them. Turn-taking is Pipecat's default: Silero VAD starts a turn, Smart Turn v3 ends it, and `VADFallback` ends a turn the VAD missed when the STT heard speech. The participant is muted until the opening has finished.
 
 Audio enters at 16 kHz, which Silero VAD, Smart Turn and the STT require, and leaves at 48 kHz, native for ElevenLabs and LiveKit. The transport resamples once on the way in.

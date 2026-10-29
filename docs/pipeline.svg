@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="430" viewBox="0 0 1040 430" role="img" aria-labelledby="title">
+  <title id="title">Inside the agent: audio from the Unity client runs through transport in, STT, VADFallback, the user aggregator, LLM, TTS, transport out and the assistant aggregator. Both aggregators write the LLM context, which the LLM reads. Client messages reach world.py, which logs metrics and hands game events to Game; Game swaps the snapshot into the context and runs or interrupts the LLM. Observers watch every frame and write the debug and study logs.</title>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #1f2328; text-anchor: middle; }
+    .name { font-size: 14px; font-weight: 600; }
+    .sub { font-size: 12px; fill: #59636e; }
+    .label { font-size: 12px; fill: #59636e; }
+    .box { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.5; }
+    .agent { fill: #ddf4ff; stroke: #54aeff; stroke-width: 1.5; }
+    .stage { fill: #ffffff; stroke: #54aeff; stroke-width: 1.5; }
+    .group { fill: none; stroke: #d0d7de; stroke-width: 1.5; stroke-dasharray: 5 4; }
+    .link { stroke: #818b98; stroke-width: 1.5; fill: none; }
+    .dash { stroke-dasharray: 5 4; }
+    .head { fill: #818b98; }
+    @media (prefers-color-scheme: dark) {
+      text { fill: #e6edf3; }
+      .sub, .label { fill: #9198a1; }
+      .box { fill: #151b23; stroke: #3d444d; }
+      .agent { fill: #0d2a4f; stroke: #1f6feb; }
+      .stage { fill: #0d1117; stroke: #1f6feb; }
+      .group { stroke: #3d444d; }
+      .link { stroke: #9198a1; }
+      .head { fill: #9198a1; }
+    }
+  </style>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="head" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <rect class="box" x="10" y="28" width="100" height="222" rx="8"/>
+  <text class="name" x="60" y="132">Unity client</text>
+  <text class="sub" x="60" y="152">VR/AR headset</text>
+
+  <rect class="agent" x="200" y="120" width="826" height="96" rx="8"/>
+  <text class="sub" x="214" y="137" style="text-anchor: start">pipeline.py</text>
+
+  <rect class="stage" x="214" y="144" width="84" height="44" rx="6"/>
+  <text x="256" y="162" font-size="12">transport</text>
+  <text x="256" y="177" font-size="12">in</text>
+  <line class="link" x1="299" y1="166" x2="315" y2="166" marker-end="url(#arrow)"/>
+
+  <rect class="stage" x="316" y="144" width="84" height="44" rx="6"/>
+  <text x="358" y="171" font-size="13">STT</text>
+  <line class="link" x1="401" y1="166" x2="417" y2="166" marker-end="url(#arrow)"/>
+
+  <rect class="stage" x="418" y="144" width="84" height="44" rx="6"/>
+  <text x="460" y="170" font-size="12">VADFallback</text>
+  <line class="link" x1="503" y1="166" x2="519" y2="166" marker-end="url(#arrow)"/>
+
+  <rect class="stage" x="520" y="144" width="84" height="44" rx="6"/>
+  <text x="562" y="162" font-size="12">user</text>
+  <text x="562" y="177" font-size="12">aggregator</text>
+  <line class="link" x1="605" y1="166" x2="621" y2="166" marker-end="url(#arrow)"/>
+  <text class="label" x="562" y="206">VAD · Smart Turn</text>
+
+  <rect class="stage" x="622" y="144" width="84" height="44" rx="6"/>
+  <text x="664" y="171" font-size="13">LLM</text>
+  <line class="link" x1="707" y1="166" x2="723" y2="166" marker-end="url(#arrow)"/>
+
+  <rect class="stage" x="724" y="144" width="84" height="44" rx="6"/>
+  <text x="766" y="171" font-size="13">TTS</text>
+  <line class="link" x1="809" y1="166" x2="825" y2="166" marker-end="url(#arrow)"/>
+
+  <rect class="stage" x="826" y="144" width="84" height="44" rx="6"/>
+  <text x="868" y="162" font-size="12">transport</text>
+  <text x="868" y="177" font-size="12">out</text>
+  <line class="link" x1="911" y1="166" x2="927" y2="166" marker-end="url(#arrow)"/>
+
+  <rect class="stage" x="928" y="144" width="84" height="44" rx="6"/>
+  <text x="970" y="162" font-size="12">assistant</text>
+  <text x="970" y="177" font-size="12">aggregator</text>
+
+  <line class="link" x1="112" y1="52" x2="206" y2="52" marker-end="url(#arrow)"/>
+  <text class="label" x="159" y="44">client-message</text>
+
+  <rect class="box" x="210" y="28" width="126" height="48" rx="8"/>
+  <text class="name" x="273" y="49">world.py</text>
+  <text class="sub" x="273" y="66">metric → study log</text>
+
+  <line class="link" x1="338" y1="52" x2="408" y2="52" marker-end="url(#arrow)"/>
+  <text class="label" x="373" y="44">game-event</text>
+
+  <rect class="box" x="412" y="28" width="100" height="48" rx="8"/>
+  <text class="name" x="462" y="49">Game</text>
+  <text class="sub" x="462" y="66">game scenarios</text>
+
+  <line class="link" x1="514" y1="52" x2="568" y2="52" marker-end="url(#arrow)"/>
+  <text class="label" x="541" y="44">snapshot</text>
+
+  <rect class="box" x="572" y="28" width="124" height="48" rx="8"/>
+  <text class="name" x="634" y="57">LLM context</text>
+
+  <line class="link" x1="462" y1="78" x2="462" y2="118" marker-end="url(#arrow)"/>
+  <text class="label" x="456" y="104" style="text-anchor: end">runs, interrupts</text>
+
+  <line class="link" x1="592" y1="142" x2="592" y2="80" marker-end="url(#arrow)"/>
+  <text class="label" x="586" y="112" style="text-anchor: end">participant turn</text>
+
+  <line class="link dash" x1="664" y1="78" x2="664" y2="140" marker-end="url(#arrow)"/>
+  <text class="label" x="670" y="112" style="text-anchor: start">read</text>
+
+  <path class="link" d="M970,142 V52 H700" marker-end="url(#arrow)"/>
+  <text class="label" x="835" y="44">agent turn</text>
+
+  <line class="link" x1="112" y1="166" x2="212" y2="166" marker-end="url(#arrow)"/>
+  <text class="label" x="156" y="158">audio</text>
+
+  <path class="link" d="M868,190 V236 H112" marker-end="url(#arrow)"/>
+  <text class="label" x="740" y="254">audio, RTVI events</text>
+
+  <rect class="group" x="200" y="270" width="420" height="70" rx="8"/>
+  <text class="sub" x="214" y="288" style="text-anchor: start">observers, watching every frame</text>
+
+  <rect class="box" x="214" y="298" width="112" height="32" rx="6"/>
+  <text x="270" y="319" font-size="13">Timeline</text>
+  <rect class="box" x="340" y="298" width="126" height="32" rx="6"/>
+  <text x="403" y="319" font-size="13">LLMExchange</text>
+  <rect class="box" x="480" y="298" width="126" height="32" rx="6"/>
+  <text x="543" y="319" font-size="13">StudyLog</text>
+
+  <line class="link" x1="270" y1="331" x2="314" y2="370" marker-end="url(#arrow)"/>
+  <line class="link" x1="403" y1="331" x2="358" y2="370" marker-end="url(#arrow)"/>
+  <line class="link" x1="543" y1="331" x2="543" y2="370" marker-end="url(#arrow)"/>
+
+  <rect class="box" x="276" y="372" width="120" height="44" rx="8"/>
+  <text class="name" x="336" y="391">debug log</text>
+  <text class="sub" x="336" y="407">logs/debug/</text>
+  <rect class="box" x="483" y="372" width="120" height="44" rx="8"/>
+  <text class="name" x="543" y="391">study log</text>
+  <text class="sub" x="543" y="407">logs/study/</text>
+</svg>
