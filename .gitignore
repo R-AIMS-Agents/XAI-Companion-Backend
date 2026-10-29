@@ -129,3 +129,6 @@ dmypy.json
 /tests/cloud/logs
 
 livekit-server.exe
+
+# Personal Claude Code instructions
+CLAUDE.md

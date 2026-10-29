@@ -1,6 +1,6 @@
 """Headless stand-in for the Unity client: fetches its own connection details, announces itself over RTVI and publishes a camera track.
 
-Proves the milestone 4 channel without Unity. What this peer sends is what the Unity client has to send, and what it counts is what the Unity client gets for free.
+Proves the data channel and the camera track without Unity. What this peer sends is what the Unity client has to send, and what it counts is what the Unity client gets for free.
 """
 
 import argparse
