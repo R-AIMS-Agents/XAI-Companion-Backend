@@ -110,4 +110,4 @@ Every model is a named entry in `agent/services/catalog.py`, and a new entry sho
 | --- | --- |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Data flow, configuration seams, the Unity contract and the log formats. |
 | `agent/scenarios/<name>/README.md` | What each scenario is about and which game events it takes. |
-| [`PLAN.md`](PLAN.md) | Upcoming work. |
+| [`ROADMAP.md`](ROADMAP.md) | Upcoming work. |

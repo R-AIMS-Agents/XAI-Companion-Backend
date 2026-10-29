@@ -1,4 +1,4 @@
-# Plan
+# Roadmap
 
 Upcoming work only. What is built is described by the code and ARCHITECTURE.md.
 
