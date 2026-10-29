@@ -70,11 +70,13 @@ uv run python -m agent.run `
 
 ### Without a headset
 
-`tools.client_peer` stands in for the Unity client on the data channel.
+`tools.local_client` lets you talk to the agent through this PC's microphone and speakers and prints the conversation as it goes. Start the agent first, then the client in a second terminal:
 
 ```powershell
-uv run python -m tools.client_peer
+uv run python -m tools.local_client
 ```
+
+It joins as `local` rather than `unity`, with echo cancellation on, so speakers work. Ctrl+C ends it, and it ends on its own when the agent leaves.
 
 ### Logs
 
@@ -84,6 +86,12 @@ Each session writes a study log and a debug log under `logs/`, which stays on th
 
 ```powershell
 uv run pytest
+```
+
+`tests/test_live_client.py` checks the Unity contract against a running agent: token, handshake and camera track. A plain run skips it. With the agent up:
+
+```powershell
+uv run pytest -m live
 ```
 
 ## Adding a model

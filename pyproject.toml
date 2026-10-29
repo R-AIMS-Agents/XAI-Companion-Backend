@@ -16,8 +16,11 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "sounddevice>=0.5.6",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 pythonpath = ["."]
+addopts = "-m 'not live'"
+markers = ["live: needs a running agent, run with `uv run pytest -m live`"]
