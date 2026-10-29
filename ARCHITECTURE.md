@@ -24,6 +24,10 @@ A scenario with a game adds `Game` (`agent/game.py`), an observer that also queu
 - The session's first snapshot opens the conversation. After that the scenario's reaction table decides per snapshot: `silent` updates the context and nothing more; `when_idle` runs the LLM once nobody is speaking, no reply is generating and none is waiting to be heard, after a 0.3 s grace; `interrupt` cuts the agent off and runs the LLM at once, unless the participant is speaking, when it waits like `when_idle`.
 - Reactions held while the agent is busy collapse into one run. A run that starts on a context already holding the snapshot, such as the participant's own turn, settles the held reaction, so the agent does not answer the same state twice.
 
+## Transport
+
+LiveKit carries audio and events between the agent and Unity. Audio is a WebRTC track, so the LiveKit Unity SDK handles jitter buffering, playback and congestion control rather than client code. Turn-start stutter and late interruptions live in exactly that code. Events go through the same room as data packets, so neither side maintains its own framing, and Pipecat's `LiveKitTransport` and the LiveKit Unity SDK speak it already. LiveKit is the transport only: the agent logic is Pipecat's pipeline, and LiveKit Agents is not used.
+
 ## Configuration seams
 
 Each choice is made in one place and reaches the command line and the dialog from there.
