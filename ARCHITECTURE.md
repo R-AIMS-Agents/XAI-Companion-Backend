@@ -56,7 +56,7 @@ Messages:
 
 Handshake:
 
-- Unity sends `client-ready` naming its RTVI protocol version. Pipecat 1.13 speaks 2.2.0 and serves any 2.x client fully; a mismatched major version is answered with an error and the session continues degraded. The version is re-checked on every Pipecat upgrade.
+- Unity sends `client-ready` naming its RTVI protocol version. Pipecat 1.15 speaks 2.3.0 and serves any 2.x client fully; a mismatched major version is answered with an error and the session continues degraded. The version is re-checked on every Pipecat upgrade.
 - The agent answers with `bot-ready` and, alongside it in either order, a server-message `{"t": "session", "d": {...}}` carrying every setting of the session, the fields of `session_start` in the study log. Unity takes what it needs, such as the language for its UI, and ignores the rest.
 - The agent then opens the conversation as the scenario defines: a fixed greeting spoken at once, or, for a scenario with a game, the LLM's first run once the first snapshot arrives.
 

@@ -13,7 +13,6 @@ from pipecat.frames.frames import (
     VADUserStoppedSpeakingFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.turns.types import ProcessFrameResult
 from pipecat.turns.user_stop import BaseUserTurnStopStrategy
 
 SILENCE_SECS = 1.5
@@ -81,8 +80,7 @@ class VADFallbackStopStrategy(BaseUserTurnStopStrategy):
         """Claim the proposal, so the aggregator consumes it instead of passing it on."""
         return True
 
-    async def process_frame(self, frame: Frame) -> ProcessFrameResult:
-        """Stop the turn on a proposed stop; leave every other decision to the other strategies."""
+    async def process_frame(self, frame: Frame):
+        """Report the turn stopped on a proposed stop; leave every other decision to the other strategies."""
         if isinstance(frame, ProposedUserStoppedSpeakingFrame):
-            await self.trigger_user_turn_stopped()
-        return ProcessFrameResult.CONTINUE
+            await self.report_user_turn_stopped()
