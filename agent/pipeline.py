@@ -15,7 +15,7 @@ from pipecat.services.tts_service import TTSService
 from pipecat.transports.base_transport import BaseTransport
 from pipecat.turns.user_mute import MuteUntilFirstBotCompleteUserMuteStrategy
 from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
-from pipecat.turns.user_turn_strategies import UserTurnStrategies
+from pipecat.turns.user_turn_strategies import StrategyMode, UserTurnStrategies, UserTurnStrategiesParams
 from pipecat.utils.types import NOT_GIVEN
 
 from agent.vad_fallback import VADFallback, VADFallbackStopStrategy
@@ -42,6 +42,8 @@ def build(
                     VADFallbackStopStrategy(),
                 ]
             ),
+            # Either stop strategy ends the turn on its own, rather than Pipecat's default of waiting for both.
+            user_turn_strategies_params=UserTurnStrategiesParams(stop_mode=StrategyMode.FIRST),
             # Held muted from connect until the greeting finishes, so nothing said before or during it reaches the LLM.
             user_mute_strategies=[MuteUntilFirstBotCompleteUserMuteStrategy()],
         ),
