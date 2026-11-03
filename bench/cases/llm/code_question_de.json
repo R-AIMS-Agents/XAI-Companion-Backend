@@ -1,0 +1,21 @@
+{
+  "about": "From dev-11: after the flask is placed the participant reads out a code, and the agent must name the reagent and its colour in German.",
+  "scenario": "lab",
+  "language": "de",
+  "steps": [
+    {"game": {"event": "state", "detail": null, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": false, "combined": false, "on_station": false, "finished": false}, "status": "place_flask"}, "complete": false}},
+    {"say": "Du darfst mich Test nennen.", "run": false},
+    {"agent": "Alles klar, Test, freut mich! Hast du schon mal in einer virtuellen Realität gearbeitet?"},
+    {"say": "Ja, ich habe schon mal VR gespielt.", "run": false},
+    {"agent": "Super! Bist du bereit, mit dem Mischen anzufangen?"},
+    {"say": "Ja, los geht's.", "run": false},
+    {"tool": "start_task"},
+    {"agent": "Du mischst heute drei Verbindungen nach dem Protokoll auf dem Panel. Jede zeigt einen Kolben und zwei Reagenziencodes, und welches Reagenz zu einem Code gehört, fragst du mich. Nimm zuerst den leeren Erlenmeyerkolben vom Regal und stell ihn auf die Platte auf dem Tisch."},
+    {"game": {"event": "flask_placed", "detail": {"flask": "erlenmeyer", "substance": null}, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": true, "combined": false, "on_station": false, "finished": false}, "status": "awaiting_components"}, "complete": false}},
+    {"agent": "Perfekt, der Kolben steht. Sag mir einfach den Code des ersten Reagenzes."},
+    {"say": "Hier steht K zwei.", "expect": [
+      {"id": "names_reagent", "mentions": ["Flame", "rot"]},
+      {"id": "no_restart", "not_called": "start_task"}
+    ]}
+  ]
+}

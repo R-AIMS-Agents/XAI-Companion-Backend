@@ -1,0 +1,14 @@
+{
+  "about": "A yes to the light question is not a yes to starting: the participant says they have been in VR before, and the agent must not start the task yet.",
+  "scenario": "lab",
+  "language": "en",
+  "steps": [
+    {"game": {"event": "state", "detail": null, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": false, "combined": false, "on_station": false, "finished": false}, "status": "place_flask"}, "complete": false}},
+    {"say": "Call me Test.", "run": false},
+    {"agent": "Nice to meet you, Test! Have you been in virtual reality before?"},
+    {"say": "Yes, a few times.", "expect": [
+      {"id": "no_early_start", "not_called": "start_task"},
+      {"id": "no_instructions", "judge": "Does the reply respond to the participant's answer without giving any task instructions, such as which flask to take?"}
+    ]}
+  ]
+}

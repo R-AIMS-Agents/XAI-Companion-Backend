@@ -1,0 +1,19 @@
+{
+  "about": "dev-12 verbatim up to the participant's yes: mistral-small started the task and went straight to the first step without introducing the task.",
+  "scenario": "lab",
+  "language": "en",
+  "steps": [
+    {"game": {"event": "state", "detail": null, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": false, "combined": false, "on_station": false, "finished": false}, "status": "place_flask"}, "complete": false}},
+    {"say": "Tell me whatever", "run": false},
+    {"agent": "Nice to meet you! So, how are you doing today?"},
+    {"say": "you're doing  fine, thank you.", "run": false},
+    {"agent": "That's good to hear! Have you been in virtual reality before, or is this new to you?"},
+    {"say": "This is completely new to me", "run": false},
+    {"agent": "That's exciting! Virtual labs can feel a bit strange at first, but you'll get the hang of it quickly. Are you ready to start mixing?"},
+    {"say": "let's go ahead", "expect": [
+      {"id": "starts_task", "called": "start_task"},
+      {"id": "introduces_task", "judge": "Before giving the first step, does the reply explain the task as a whole: that the participant will mix three compounds following the protocol on the panel, that each compound shows a flask and two reagent codes, that they ask Iva which reagent a code means, and that Iva tells them where the flask goes once both reagents are in? Pass when most of these points are covered in Iva's own words."},
+      {"id": "gives_first_step", "mentions": ["Erlenmeyer"]}
+    ]}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "about": "From dev-10: during the intro the participant picks up the wrong reagent, which the game reports, and the agent must neither comment on it nor give instructions.",
+  "scenario": "lab",
+  "language": "en",
+  "steps": [
+    {"game": {"event": "state", "detail": null, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": false, "combined": false, "on_station": false, "finished": false}, "status": "place_flask"}, "complete": false}},
+    {"say": "Call me Test.", "run": false},
+    {"agent": "Nice to meet you, Test! How are you doing today?"},
+    {"game": {"event": "wrong_ingredient", "detail": {"flask": "reagent", "substance": {"name": "Sun", "code": "H-9", "color": "yellow"}}, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": false, "combined": false, "on_station": false, "finished": false}, "status": "place_flask"}, "complete": false}},
+    {"say": "I'm doing fine, thanks.", "expect": [
+      {"id": "no_early_start", "not_called": "start_task"},
+      {"id": "ignores_play", "judge": "Does the reply avoid commenting on what the participant picked up or did in the lab, and avoid giving any task instructions?"}
+    ]}
+  ]
+}

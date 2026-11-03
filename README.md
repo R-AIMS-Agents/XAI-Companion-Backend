@@ -73,6 +73,19 @@ Each session writes a study log and a debug log under `logs/`.
 
 - `tests/test_live_client.py` checks the Unity protocol against a running agent: token, handshake and camera track. Run with `uv run pytest -m live`
 
+### Benchmarks
+
+Measure a catalog model on scripted lab conversations or recorded speech, and compare it with every model measured before. A run only adds the repetitions still missing, so rerunning costs nothing until a case, the prompt or the model changes.
+
+```powershell
+uv run python -m bench.llm --llm mistral-small
+uv run python -m bench.llm --llm mistral-small --model mistral-medium-2604
+uv run python -m bench.stt --stt voxtral
+uv run python -m bench.report
+```
+
+`--model` measures another snapshot of the same provider, such as one the catalog no longer lists, and `--reasoning` sets the reasoning effort (`none`, `low`, `medium`, `high`) for a snapshot that refuses the entry's own. `--case` picks cases by file name and `--reps` sets the repetitions, 5 for the LLM and 3 for the STT by default. Cases live in `bench/cases/`, results in `bench/results/`; see [`ARCHITECTURE.md`](ARCHITECTURE.md#benchmarks).
+
 ## Adding a model
 
 Every model is a named entry in `agent/services/catalog.py`, and a new entry shows up on the command line and in the dialog at once.
@@ -85,8 +98,8 @@ Every model is a named entry in `agent/services/catalog.py`, and a new entry sho
 
 ## Further reading
 
-| Document                             | What it covers                                                          |
-|--------------------------------------|-------------------------------------------------------------------------|
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Data flow, configuration seams, the Unity contract and the log formats. |
-| `agent/scenarios/<name>/README.md`   | What each scenario is about and which game events it takes.             |
-| [`ROADMAP.md`](ROADMAP.md)           | Upcoming work.                                                          |
+| Document                             | What it covers                                                                          |
+|--------------------------------------|-----------------------------------------------------------------------------------------|
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Data flow, configuration seams, the Unity contract, the log formats and the benchmarks. |
+| `agent/scenarios/<name>/README.md`   | What each scenario is about and which game events it takes.                             |
+| [`ROADMAP.md`](ROADMAP.md)           | Upcoming work.                                                                          |

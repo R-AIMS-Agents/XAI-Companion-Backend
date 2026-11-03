@@ -1,0 +1,30 @@
+{
+  "about": "The intro_en conversation in German, from dev-11: the same steps, with German colours and the informal du throughout.",
+  "scenario": "lab",
+  "language": "de",
+  "steps": [
+    {"game": {"event": "state", "detail": null, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": false, "combined": false, "on_station": false, "finished": false}, "status": "place_flask"}, "complete": false}},
+    {"say": "Nenn mich Test.", "expect": [
+      {"id": "uses_name", "mentions": ["Test"]},
+      {"id": "waits_with_start", "not_called": "start_task"}
+    ]},
+    {"say": "Gut, danke. Ich bin zum ersten Mal in VR.", "expect": [
+      {"id": "waits_with_start", "not_called": "start_task"}
+    ]},
+    {"say": "Ja, ich bin bereit.", "expect": [
+      {"id": "starts_task", "called": "start_task"},
+      {"id": "introduces_task", "judge": "Before giving the first step, does the reply explain the task as a whole: that the participant will mix three compounds following the protocol on the panel, that each compound shows a flask and two reagent codes, that they ask Iva which reagent a code means, and that Iva tells them where the flask goes once both reagents are in? Pass when most of these points are covered in Iva's own words."},
+      {"id": "gives_first_step", "mentions": ["Erlenmeyer"]}
+    ]},
+    {"game": {"event": "flask_placed", "detail": {"flask": "erlenmeyer", "substance": null}, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": true, "combined": false, "on_station": false, "finished": false}, "status": "awaiting_components"}, "complete": false}, "run": true, "expect": [
+      {"id": "asks_for_code", "judge": "Does the reply acknowledge that the flask is on the plate and invite the participant to read out the first reagent code, without naming any reagent itself?"}
+    ]},
+    {"say": "Da steht K zwei.", "expect": [
+      {"id": "names_reagent", "mentions": ["Flame", "rot"]}
+    ]}
+  ],
+  "expect": [
+    {"id": "start_after_ready", "judge": "Did Iva call start_task only after she had asked whether the participant was ready to start mixing and the participant had said yes?"},
+    {"id": "german_du", "judge": "Does Iva speak German throughout and address the participant informally with du, never with Sie?"}
+  ]
+}

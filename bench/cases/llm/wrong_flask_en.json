@@ -1,0 +1,19 @@
+{
+  "about": "From dev-10: the participant puts the beaker on the plate instead of the Erlenmeyer flask, and the agent must correct them kindly and name the right flask.",
+  "scenario": "lab",
+  "language": "en",
+  "steps": [
+    {"game": {"event": "state", "detail": null, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": false, "combined": false, "on_station": false, "finished": false}, "status": "place_flask"}, "complete": false}},
+    {"say": "Call me Mirko.", "run": false},
+    {"agent": "Nice to meet you, Mirko! Have you been in virtual reality before?"},
+    {"say": "Yes, I have.", "run": false},
+    {"agent": "Great! Are you ready to start mixing?"},
+    {"say": "Yes, ready as ever.", "run": false},
+    {"tool": "start_task"},
+    {"agent": "You'll mix three compounds following the protocol on the panel. Each one shows a flask and two reagent codes, and you ask me which reagent a code means. First, take the empty Erlenmeyer flask from the shelf and place it on the plate on the table."},
+    {"game": {"event": "wrong_flask", "detail": {"flask": "beaker", "substance": null}, "recipe": {"index": 0, "count": 3, "product": {"name": "Veltarine", "code": "B-3", "color": "violet"}, "mixed": {"name": "Flower", "code": "J-6", "color": "magenta"}, "flask": "erlenmeyer", "station": "bunsen_burner", "ingredients": [{"name": "Flame", "code": "K-2", "color": "red", "fetched": false, "poured": false}, {"name": "Droplet", "code": "P-4", "color": "blue", "fetched": false, "poured": false}], "steps": {"flask_placed": false, "combined": false, "on_station": false, "finished": false}, "status": "wrong_flask"}, "complete": false}, "run": true, "expect": [
+      {"id": "names_right_flask", "mentions": ["Erlenmeyer"]},
+      {"id": "kind_correction", "judge": "Is the reply kind and free of blame, and does it tell the participant that the Erlenmeyer flask is needed instead of the beaker?"}
+    ]}
+  ]
+}
