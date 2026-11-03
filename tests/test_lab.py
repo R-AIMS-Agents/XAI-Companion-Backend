@@ -57,7 +57,17 @@ def test_the_prompt_names_the_equipment_in_the_session_language(language, names)
         assert name in prompt
 
 
-def test_the_lab_opens_with_the_llm_rather_than_a_greeting():
-    """The opening needs the first recipe, so the lab has no fixed greeting and opens on the first snapshot."""
-    assert SCENARIOS["lab"].greeting is None
+@pytest.mark.parametrize(
+    "language, disclosure",
+    [("en", ["an AI agent", "several models", "I can make mistakes"]), ("de", ["KI-Agentin", "mehrere Modelle", "Ich kann mich irren"])],
+)
+def test_the_lab_opens_with_a_greeting_that_discloses_an_ai(language, disclosure):
+    """Every participant hears the same words saying Iva is an AI agent built from several models that can make mistakes, before the intro the game waits for."""
+    for words in disclosure:
+        assert words in SCENARIOS["lab"].greeting[language]
     assert SCENARIOS["lab"].reaction is lab.reaction
+
+
+def test_the_prompt_tells_the_tutor_when_to_start_the_task():
+    """The intro ends only when the tutor calls the tool, so the prompt has to name it."""
+    assert "start_task" in lab.system_prompt("en")

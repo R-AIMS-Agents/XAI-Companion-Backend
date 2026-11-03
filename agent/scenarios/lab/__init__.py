@@ -1,4 +1,4 @@
-"""The lab tutor: Iva guides the participant through a chemistry protocol the Unity client runs, reacting to its game events."""
+"""The lab tutor: Iva introduces herself as an AI, then guides the participant through a chemistry protocol the Unity client runs, reacting to its game events."""
 
 from typing import Any
 
@@ -7,7 +7,13 @@ from loguru import logger
 from agent.game import Reaction
 from agent.scenarios.lab.prompt import system_prompt
 
-# The reaction to every event the client sends. The session's first snapshot opens the conversation whatever this says.
+# Spoken verbatim once the client is ready, so every participant hears the same disclosure that Iva is an AI agent that can make mistakes.
+GREETING = {
+    "en": "Hi, great to have you here! I'm Iva, an AI agent, and what I hear, say and answer is handled by several models. I can make mistakes, so if something I say seems off, just ask again. I'll be supervising you in the lab today. What should I call you?",
+    "de": "Hallo, schön, dass du da bist! Ich bin Iva, eine KI-Agentin, und was ich höre, sage und antworte, übernehmen mehrere Modelle. Ich kann mich irren, also frag ruhig nach, wenn dir etwas komisch vorkommt. Ich betreue dich heute hier im Labor. Wie darf ich dich nennen?",
+}
+
+# The reaction to every event the client sends, once the intro is over.
 REACTIONS = {
     "state": Reaction.SILENT,
     "recipe_loaded": Reaction.WHEN_IDLE,
@@ -28,7 +34,7 @@ REACTIONS = {
 
 
 def reaction(snapshot: dict[str, Any]) -> Reaction:
-    """Look up what an event makes the tutor do; the first recipe's load is silent, since the opening already introduced it."""
+    """Look up what an event makes the tutor do; the first recipe's load is silent, since starting the task already introduced it."""
     event = snapshot.get("event")
     if event == "recipe_loaded" and (snapshot.get("recipe") or {}).get("index") == 0:
         return Reaction.SILENT

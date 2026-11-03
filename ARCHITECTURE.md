@@ -14,7 +14,7 @@ transport in -> STT -> VADFallback -> user aggregator -> LLM -> TTS -> transport
 
 ![Inside the agent: the frame pipeline, the LLM context both aggregators write and the LLM reads, client messages through world.py to Game, and the observers that write the two logs.](docs/pipeline.svg)
 
-`pipeline.py` is the only place it is assembled, and receives its transport, services and system prompt rather than constructing them. Turn-taking is Pipecat's default: Silero VAD starts a turn, Smart Turn v3 ends it, and `VADFallback` ends a turn the VAD missed when the STT heard speech. The participant is muted until the opening has finished.
+`pipeline.py` is the only place it is assembled, and receives its transport, services, system prompt and tools rather than constructing them. Turn-taking is Pipecat's default: Silero VAD starts a turn, Smart Turn v3 ends it, and `VADFallback` ends a turn the VAD missed when the STT heard speech. The participant is muted until the opening has finished.
 
 Audio enters at 16 kHz, which Silero VAD, Smart Turn and the STT require, and leaves at 48 kHz, native for ElevenLabs and LiveKit. The transport resamples once on the way in.
 
@@ -23,7 +23,9 @@ Observers watch the pipeline without being part of it: `Timeline` and `LLMExchan
 A scenario with a game adds `Game` (`agent/game.py`), an observer that also queues frames. It turns each game snapshot from the client into the LLM context and decides when the agent speaks about it:
 
 - Only the newest snapshot is in the context, swapped in place of the previous one and appended last, as a developer message headed as a game-state update the participant did not say. Mistral receives it as a user message.
-- The session's first snapshot opens the conversation. After that the scenario's reaction table decides per snapshot: `silent` updates the context and nothing more; `when_idle` runs the LLM once nobody is speaking, no reply is generating and none is waiting to be heard, after a 0.3 s grace; `interrupt` cuts the agent off and runs the LLM at once, unless the participant is speaking, when it waits like `when_idle`.
+- An event expires: 10 s after the newest snapshot (`EVENT_TIMEOUT_S`), it is swapped in again with `event` and `detail` set to null, so the agent does not take an old event for what just happened. A reaction still held keeps its event until it has run. Expiry is not a client event and appears only in the debug log's LLM contexts.
+- A scenario without a greeting opens on the session's first snapshot. A scenario with a greeting opens on it and runs an intro: every snapshot enters the context, none is reacted to, and the study log labels it `intro`. The intro ends when the LLM calls `start_task`, the one tool, offered only then; its result runs the LLM again, which starts the task from the newest snapshot.
+- After the opening or the intro, the scenario's reaction table decides per snapshot: `silent` updates the context and nothing more; `when_idle` runs the LLM once nobody is speaking, no reply is generating and none is waiting to be heard, after a 0.3 s grace; `interrupt` cuts the agent off and runs the LLM at once, unless the participant is speaking, when it waits like `when_idle`.
 - Reactions held while the agent is busy collapse into one run. A run that starts on a context already holding the snapshot, such as the participant's own turn, settles the held reaction, so the agent does not answer the same state twice.
 
 ## Transport
@@ -35,7 +37,7 @@ LiveKit carries audio and events between the agent and Unity. Audio is a WebRTC 
 Each choice is made in one place and reaches the command line and the dialog from there.
 
 - Models: `agent/services/catalog.py`, name to factory, with `DEFAULTS` and the languages each voice speaks. A factory imports its provider inside the function, so selecting one model never loads another's dependencies. Every entry names a pinned snapshot such as `mistral-small-2603`, never a `-latest` alias, so a provider cannot change the model under a running study; a retired snapshot fails at startup instead.
-- Scenario: `agent/scenarios/`, name to `Scenario`: the system prompt, an optional fixed greeting, and the reaction table for a scenario with a game. What a session is about varies here and nowhere else. Each scenario has its own folder, and its `README.md` describes it: persona, opening, and the game events it takes.
+- Scenario: `agent/scenarios/`, name to `Scenario`: the system prompt, an optional fixed greeting, and the reaction table for a scenario with a game. A game with a greeting opens with an intro. What a session is about varies here and nowhere else. Each scenario has its own folder, and its `README.md` describes it: persona, opening, and the game events it takes.
 - Transport: `session.TRANSPORTS`. LiveKit is the only one.
 - Session: participant ID, language (`config.LANGUAGES`, English or German) and `--vision`, on the command line or in the dialog.
 
@@ -58,7 +60,7 @@ Handshake:
 
 - Unity sends `client-ready` naming its RTVI protocol version. Pipecat 1.15 speaks 2.3.0 and serves any 2.x client fully; a mismatched major version is answered with an error and the session continues degraded. The version is re-checked on every Pipecat upgrade.
 - The agent answers with `bot-ready` and, alongside it in either order, a server-message `{"t": "session", "d": {...}}` carrying every setting of the session, the fields of `session_start` in the study log. Unity takes what it needs, such as the language for its UI, and ignores the rest.
-- The agent then opens the conversation as the scenario defines: a fixed greeting spoken at once, or, for a scenario with a game, the LLM's first run once the first snapshot arrives.
+- The agent then opens the conversation as the scenario defines: a fixed greeting spoken at once, or, for a scenario with a game and no greeting, the LLM's first run once the first snapshot arrives.
 
 Agent to Unity, with no agent code behind them: `bot-started-speaking`, `bot-stopped-speaking`, `bot-tts-started`, `bot-tts-stopped`, `bot-tts-text` word by word, `bot-output`, `user-started-speaking`, `user-stopped-speaking`, `user-transcription`, `bot-interrupted` and `metrics`. These are the animation and interruption triggers.
 
@@ -78,5 +80,5 @@ Participant IDs: any string that can name a file. `P` and a number is the number
 
 Two logs per session:
 
-- `logs/study/<session>.jsonl`, the record the analysis reads. One JSON line per event, flushed as written, each stamped with `ts`, `iso` and the current `turn`. `session_start` names participant, session, language, scenario, transport, vision, the models by catalog name and by the provider's model ID (`stt_model`, `llm_model`, `tts_model`), and the code version; then `client_ready`, `user_transcript` and `assistant_message` as they entered the LLM context, `tool_call`, `turn_started` and `turn_ended` with duration, interruption and usage, `response_latency` with its `latency_breakdown` stage by stage, `first_speech_latency` once, `interruption_latency`, `client_metric` from Unity, and `game_event` with the snapshot as `data` and its `reaction` (`opening`, `silent`, `when_idle` or `interrupt`). `session_end` closes it with totals.
+- `logs/study/<session>.jsonl`, the record the analysis reads. One JSON line per event, flushed as written, each stamped with `ts`, `iso` and the current `turn`. `session_start` names participant, session, language, scenario, transport, vision, the models by catalog name and by the provider's model ID (`stt_model`, `llm_model`, `tts_model`), and the code version; then `client_ready`, `user_transcript` and `assistant_message` as they entered the LLM context, `tool_call`, `turn_started` and `turn_ended` with duration, interruption and usage, `response_latency` with its `latency_breakdown` stage by stage, `first_speech_latency` once, `interruption_latency`, `client_metric` from Unity, and `game_event` with the snapshot as `data` and its `reaction` (`opening`, `intro`, `silent`, `when_idle` or `interrupt`). `session_end` closes it with totals.
 - `logs/debug/<session>_<start time>.jsonl`, for debugging: every log record of the run, every frame once, and every LLM call with the full context it was given, its tool calls and its output.

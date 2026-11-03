@@ -1,4 +1,4 @@
-"""Game events: the newest snapshot in the context, and when a reaction makes the agent speak, wait, interrupt or stay silent."""
+"""Game events: the newest snapshot in the context, when a reaction makes the agent speak, wait, interrupt or stay silent, and the intro that holds every reaction until the task starts."""
 
 import asyncio
 import json
@@ -22,13 +22,16 @@ from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.frame_processor import FrameDirection
 
 from agent import game as game_module
-from agent.game import HEADER, Game, Reaction
+from agent.game import HEADER, STARTED, Game, Reaction
 from agent.observability.study_log import StudyLog
 
 GRACE_S = 0.01
 
 # Long enough for the grace period to pass and the queued run to land.
 SETTLE_S = 0.05
+
+# An event timeout far enough above Windows' 15 ms timer resolution to tell before from after.
+TIMEOUT_S = 0.1
 
 
 class _Processor:
@@ -68,6 +71,18 @@ def _snapshot(event: str, **fields) -> dict:
     return {"event": event, **fields}
 
 
+class _Call:
+    """Stand-in for a function call's parameters, recording the result the handler hands back."""
+
+    def __init__(self):
+        """Start with no result."""
+        self.results = []
+
+    async def result_callback(self, result):
+        """Record the result."""
+        self.results.append(result)
+
+
 def _table(snapshot: dict) -> Reaction:
     """A reaction table where the event name is the reaction, so each test states what it exercises."""
     return Reaction(snapshot["event"])
@@ -92,6 +107,13 @@ def game(monkeypatch, worker, study):
     """A game whose grace period is short enough to wait out in a test."""
     monkeypatch.setattr(game_module, "GRACE_S", GRACE_S)
     return Game(_table, worker.queue_frames, study)
+
+
+@pytest.fixture
+def intro(monkeypatch, worker, study):
+    """A game that opened with a greeting and holds every reaction until the task starts."""
+    monkeypatch.setattr(game_module, "GRACE_S", GRACE_S)
+    return Game(_table, worker.queue_frames, study, intro=True)
 
 
 @pytest.fixture
@@ -262,3 +284,80 @@ async def test_every_snapshot_is_written_to_the_study_log_with_its_reaction(open
     lines = [json.loads(line) for line in (tmp_path / "P01.jsonl").read_text(encoding="utf-8").splitlines()]
     events = [(line["reaction"], line["data"]["index"]) for line in lines if line["event"] == "game_event"]
     assert events == [("opening", 0), ("silent", 1), ("interrupt", 2)]
+
+
+async def test_an_event_nothing_follows_expires_from_the_context(monkeypatch, opened, worker):
+    """After the timeout the state stays but the event and detail are cleared, without the agent speaking about it."""
+    monkeypatch.setattr(game_module, "EVENT_TIMEOUT_S", TIMEOUT_S)
+    await opened.receive(_snapshot("silent", index=1, detail={"flask": "beaker"}))
+    await asyncio.sleep(TIMEOUT_S / 2)
+    assert worker.snapshots() == [_snapshot("silent", index=1, detail={"flask": "beaker"})]
+
+    await asyncio.sleep(TIMEOUT_S)
+    assert worker.snapshots() == [{"event": None, "index": 1, "detail": None}]
+    assert worker.runs() == 0
+
+
+async def test_a_new_event_starts_the_timeout_over(monkeypatch, opened, worker):
+    """Only the newest event counts, so its timeout runs from when it arrived."""
+    monkeypatch.setattr(game_module, "EVENT_TIMEOUT_S", TIMEOUT_S)
+    await opened.receive(_snapshot("silent", index=1))
+    await asyncio.sleep(TIMEOUT_S * 0.6)
+    await opened.receive(_snapshot("silent", index=2))
+    await asyncio.sleep(TIMEOUT_S * 0.6)
+
+    assert worker.snapshots() == [_snapshot("silent", index=2)]
+
+
+async def test_an_event_still_awaiting_its_reaction_does_not_expire(monkeypatch, opened, worker):
+    """While the agent is busy the reaction is held, and it has to run on the event it is a reaction to."""
+    monkeypatch.setattr(game_module, "EVENT_TIMEOUT_S", TIMEOUT_S)
+    await _push(opened, BotStartedSpeakingFrame())
+    await opened.receive(_snapshot("when_idle", index=1))
+    await asyncio.sleep(TIMEOUT_S * 1.3)
+    assert worker.snapshots() == [_snapshot("when_idle", index=1)]
+
+    await _push(opened, BotStoppedSpeakingFrame())
+    await asyncio.sleep(TIMEOUT_S * 0.4)
+    assert worker.runs() == 1
+    assert worker.snapshots() == [_snapshot("when_idle", index=1)]
+
+
+async def test_the_intro_holds_every_event_and_keeps_only_the_newest_snapshot(intro, worker, tmp_path):
+    """The participant can play around before the task starts without the agent reacting, while it still knows the current state."""
+    await intro.receive(_snapshot("when_idle", index=0))
+    await intro.receive(_snapshot("interrupt", index=1))
+    await asyncio.sleep(SETTLE_S)
+
+    assert worker.runs() == 0
+    assert not any(isinstance(frame, InterruptionFrame) for frame in worker.queued)
+    assert worker.snapshots() == [_snapshot("interrupt", index=1)]
+    lines = [json.loads(line) for line in (tmp_path / "P01.jsonl").read_text(encoding="utf-8").splitlines()]
+    assert [line["reaction"] for line in lines if line["event"] == "game_event"] == ["intro", "intro"]
+
+
+async def test_starting_the_task_hands_the_reaction_table_back(intro, worker):
+    """Once the agent starts the task, events react as their table says, with no second opening."""
+    call = _Call()
+    await intro.receive(_snapshot("when_idle", index=0))
+    await intro.start_task(call)
+    await intro.receive(_snapshot("silent", index=1))
+    await asyncio.sleep(SETTLE_S)
+    assert call.results == [STARTED]
+    assert worker.runs() == 0
+
+    await intro.receive(_snapshot("when_idle", index=2))
+    await asyncio.sleep(SETTLE_S)
+    assert worker.runs() == 1
+
+
+async def test_starting_the_task_twice_changes_nothing(intro, worker):
+    """A second call from the LLM is answered like the first and leaves the game as it was."""
+    first, second = _Call(), _Call()
+    await intro.start_task(first)
+    await intro.start_task(second)
+    await intro.receive(_snapshot("silent"))
+    await asyncio.sleep(SETTLE_S)
+
+    assert first.results == second.results == [STARTED]
+    assert worker.runs() == 0

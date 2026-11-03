@@ -11,7 +11,7 @@ from pipecat.workers.runner import WorkerRunner
 
 from agent import config, join, livekit_server, nemotron_server, pipeline, roster, scenarios, session, world
 from agent.config import AUDIO_IN, AUDIO_OUT
-from agent.game import Game
+from agent.game import START_TASK, Game
 from agent.observability import debug_log
 from agent.observability.llm_exchange import LLMExchange
 from agent.observability.study_log import StudyLog
@@ -85,6 +85,8 @@ async def main():
         logger.info(f"Client connection details on port {join.PORT} at {join.PATH}")
 
         scenario = scenarios.SCENARIOS[run.scenario]
+        # A scenario with a game that opens on a greeting holds the game until the agent starts the task.
+        intro = scenario.reaction is not None and scenario.greeting is not None
         worker = PipelineWorker(
             pipeline.build(
                 transport,
@@ -92,6 +94,7 @@ async def main():
                 llm,
                 tts,
                 scenario.system_prompt(run.language),
+                [START_TASK] if intro else [],
             ),
             params=PipelineParams(
                 audio_in_sample_rate=AUDIO_IN,
@@ -105,8 +108,10 @@ async def main():
 
         game = None
         if scenario.reaction is not None:
-            game = Game(scenario.reaction, worker.queue_frames, study)
+            game = Game(scenario.reaction, worker.queue_frames, study, intro)
             worker.add_observer(game)
+            if intro:
+                llm.register_function(START_TASK.name, game.start_task)
         greeting = scenario.greeting[run.language] if scenario.greeting else None
         world.attach(worker, greeting, study, settings, game)
 
