@@ -12,6 +12,9 @@ from pipecat.frames.frames import (
     InterruptionFrame,
     LLMContextAssistantTurnFrame,
     LLMContextUserTurnFrame,
+    LLMThoughtEndFrame,
+    LLMThoughtStartFrame,
+    LLMThoughtTextFrame,
     MetricsFrame,
     VADUserStartedSpeakingFrame,
 )
@@ -90,6 +93,19 @@ async def test_each_utterance_is_logged_once(path):
         ("user_transcript", "Hello there"),
         ("assistant_message", "Hi, welcome."),
     ]
+
+
+async def test_a_thought_is_logged_whole_once_it_ends(path):
+    """The LLM's reasoning is part of the record, one line per thought rather than per streamed chunk."""
+    log = StudyLog(path)
+    await _push(log, LLMThoughtStartFrame())
+    await _push(log, LLMThoughtTextFrame(text="Mirko is ready,"))
+    await _push(log, LLMThoughtTextFrame(text=" so start the task."))
+    await _push(log, LLMThoughtEndFrame())
+    log.close()
+
+    lines = _lines(path)[:-1]
+    assert [(line["event"], line["text"]) for line in lines] == [("llm_thought", "Mirko is ready, so start the task.")]
 
 
 async def test_audio_never_reaches_the_log(path):

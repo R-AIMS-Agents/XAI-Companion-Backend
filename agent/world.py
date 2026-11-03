@@ -3,9 +3,11 @@
 from typing import Any
 
 from loguru import logger
-from pipecat.frames.frames import TTSSpeakFrame
+from pipecat.frames.frames import LLMThoughtEndFrame, LLMThoughtStartFrame, LLMThoughtTextFrame, TTSSpeakFrame
+from pipecat.observers.base_observer import BaseObserver, FramePushed
 from pipecat.pipeline.worker import PipelineWorker
 from pipecat.processors.frameworks.rtvi.models import ClientMessage
+from pipecat.processors.frameworks.rtvi.processor import RTVIProcessor
 
 from agent.game import Game
 from agent.observability.study_log import StudyLog
@@ -19,9 +21,34 @@ GAME_EVENT = "game-event"
 # The RTVI server-message type the agent sends the session's settings under, as {"t": "session", "d": {...}}.
 SESSION = "session"
 
+# The RTVI server-message type the agent sends each finished LLM thought under, as {"t": "thought", "d": {"text": ...}}.
+THOUGHT = "thought"
+
+
+class ThoughtRelay(BaseObserver):
+    """Sends the client each LLM thought whole, once it has ended."""
+
+    def __init__(self, rtvi: RTVIProcessor, **kwargs):
+        """Relay through the worker's RTVI processor."""
+        super().__init__(observe_every_push=False, **kwargs)
+        self._rtvi = rtvi
+        self._thought: list[str] = []
+
+    async def on_push_frame(self, data: FramePushed):
+        """Collect a thought's text between its start and end frames and send it at the end."""
+        frame = data.frame
+        if isinstance(frame, LLMThoughtStartFrame):
+            self._thought = []
+        elif isinstance(frame, LLMThoughtTextFrame):
+            self._thought.append(frame.text)
+        elif isinstance(frame, LLMThoughtEndFrame):
+            await self._rtvi.send_server_message({"t": THOUGHT, "d": {"text": "".join(self._thought)}})
+            self._thought = []
+
 
 def attach(worker: PipelineWorker, greeting: str | None, study: StudyLog, settings: dict[str, Any], game: Game | None):
-    """Wire the client handshake and the client's messages, so the agent opens only once a client is there to hear it."""
+    """Wire the client handshake, the client's messages and the thoughts sent to it, so the agent opens only once a client is there to hear it."""
+    worker.add_observer(ThoughtRelay(worker.rtvi))
 
     # The worker answers bot-ready on this event itself, so a second handler here would put two of them on the wire. Handlers run as separate tasks, so the settings and bot-ready reach the client in either order.
     @worker.rtvi.event_handler("on_client_ready")

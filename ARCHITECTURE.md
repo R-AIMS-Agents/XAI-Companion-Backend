@@ -18,7 +18,7 @@ transport in -> STT -> VADFallback -> user aggregator -> LLM -> TTS -> transport
 
 Audio enters at 16 kHz, which Silero VAD, Smart Turn and the STT require, and leaves at 48 kHz, native for ElevenLabs and LiveKit. The transport resamples once on the way in.
 
-Observers watch the pipeline without being part of it: `Timeline` and `LLMExchange` write the debug log, `StudyLog` the study log. `world.py` holds everything that passes between client and agent that is not audio.
+Observers watch the pipeline without being part of it: `Timeline` and `LLMExchange` write the debug log, `StudyLog` the study log, `ThoughtRelay` sends the LLM's thoughts to the client. `world.py` holds everything that passes between client and agent that is not audio.
 
 A scenario with a game adds `Game` (`agent/game.py`), an observer that also queues frames. It turns each game snapshot from the client into the LLM context and decides when the agent speaks about it:
 
@@ -36,7 +36,7 @@ LiveKit carries audio and events between the agent and Unity. Audio is a WebRTC 
 
 Each choice is made in one place and reaches the command line and the dialog from there.
 
-- Models: `agent/services/catalog.py`, name to factory, with `DEFAULTS` and the languages each voice speaks. A factory imports its provider inside the function, so selecting one model never loads another's dependencies. Every entry names a pinned snapshot such as `mistral-small-2603`, never a `-latest` alias, so a provider cannot change the model under a running study; a retired snapshot fails at startup instead.
+- Models: `agent/services/catalog.py`, name to factory, with `DEFAULTS` and the languages each voice speaks. A factory imports its provider inside the function, so selecting one model never loads another's dependencies. Every entry names a pinned snapshot such as `mistral-small-2603`, never a `-latest` alias, so a provider cannot change the model under a running study; a retired snapshot fails at startup instead. Every Mistral LLM entry fixes its `reasoning_effort`: `none` where the model can turn reasoning off (`mistral-small`), otherwise the lowest it accepts (`low` for `mistral-large`). Mistral streams thinking as content parts; `agent/services/mistral_llm.py` turns them into Pipecat's `LLMThought*` frames, so thinking never reaches TTS or the LLM context, and passes only the answer on as text.
 - Scenario: `agent/scenarios/`, name to `Scenario`: the system prompt, an optional fixed greeting, and the reaction table for a scenario with a game. A game with a greeting opens with an intro. What a session is about varies here and nowhere else. Each scenario has its own folder, and its `README.md` describes it: persona, opening, and the game events it takes.
 - Transport: `session.TRANSPORTS`. LiveKit is the only one.
 - Session: participant ID, language (`config.LANGUAGES`, English or German) and `--vision`, on the command line or in the dialog.
@@ -64,6 +64,8 @@ Handshake:
 
 Agent to Unity, with no agent code behind them: `bot-started-speaking`, `bot-stopped-speaking`, `bot-tts-started`, `bot-tts-stopped`, `bot-tts-text` word by word, `bot-output`, `user-started-speaking`, `user-stopped-speaking`, `user-transcription`, `bot-interrupted` and `metrics`. These are the animation and interruption triggers.
 
+Agent to Unity, from agent code: a server-message `{"t": "thought", "d": {"text": ...}}` with each LLM thought whole, sent when the thought ends, which is before the answer it led to is spoken. Only a reasoning model thinks, so a session on `mistral-small` sends none.
+
 Unity to agent:
 
 - `metric`: a measurement, written to the study log as sent, so Unity adds one without a backend change. By convention `d` carries a `name`.
@@ -80,5 +82,5 @@ Participant IDs: any string that can name a file. `P` and a number is the number
 
 Two logs per session:
 
-- `logs/study/<session>.jsonl`, the record the analysis reads. One JSON line per event, flushed as written, each stamped with `ts`, `iso` and the current `turn`. `session_start` names participant, session, language, scenario, transport, vision, the models by catalog name and by the provider's model ID (`stt_model`, `llm_model`, `tts_model`), and the code version; then `client_ready`, `user_transcript` and `assistant_message` as they entered the LLM context, `tool_call`, `turn_started` and `turn_ended` with duration, interruption and usage, `response_latency` with its `latency_breakdown` stage by stage, `first_speech_latency` once, `interruption_latency`, `client_metric` from Unity, and `game_event` with the snapshot as `data` and its `reaction` (`opening`, `intro`, `silent`, `when_idle` or `interrupt`). `session_end` closes it with totals.
+- `logs/study/<session>.jsonl`, the record the analysis reads. One JSON line per event, flushed as written, each stamped with `ts`, `iso` and the current `turn`. `session_start` names participant, session, language, scenario, transport, vision, the models by catalog name and by the provider's model ID (`stt_model`, `llm_model`, `tts_model`), and the code version; then `client_ready`, `user_transcript` and `assistant_message` as they entered the LLM context, `llm_thought` with each thought of a reasoning model whole, `tool_call`, `turn_started` and `turn_ended` with duration, interruption and usage, `response_latency` with its `latency_breakdown` stage by stage, `first_speech_latency` once, `interruption_latency`, `client_metric` from Unity, and `game_event` with the snapshot as `data` and its `reaction` (`opening`, `intro`, `silent`, `when_idle` or `interrupt`). `session_end` closes it with totals.
 - `logs/debug/<session>_<start time>.jsonl`, for debugging: every log record of the run, every frame once, and every LLM call with the full context it was given, its tool calls and its output.

@@ -55,13 +55,13 @@ def _nemotron(config: Config, language: Language) -> STTService:
     )
 
 
-def _mistral_llm(config: Config, model: str) -> LLMService:
-    """Build one of Mistral's chat models."""
-    from pipecat.services.mistral.llm import MistralLLMService
+def _mistral_llm(config: Config, model: str, reasoning_effort: str) -> LLMService:
+    """Build one of Mistral's chat models at a fixed reasoning effort, "none" where the model can turn reasoning off."""
+    from agent.services.mistral_llm import ThinkingMistralLLMService
 
-    return MistralLLMService(
+    return ThinkingMistralLLMService(
         api_key=_demand(config.mistral_api_key, "MISTRAL_API_KEY"),
-        settings=MistralLLMService.Settings(model=model),
+        settings=ThinkingMistralLLMService.Settings(model=model, extra={"reasoning_effort": reasoning_effort}),
     )
 
 
@@ -89,8 +89,9 @@ STT: dict[str, Callable[[Config, Language], STTService]] = {
 }
 
 LLM: dict[str, Callable[[Config], LLMService]] = {
-    "mistral-small": partial(_mistral_llm, model="mistral-small-2603"),
-    "mistral-large": partial(_mistral_llm, model="mistral-large-4-0"),
+    "mistral-small": partial(_mistral_llm, model="mistral-small-2603", reasoning_effort="none"),
+    # Large 4 always reasons; "low" is the least it accepts.
+    "mistral-large": partial(_mistral_llm, model="mistral-large-4-0", reasoning_effort="low"),
 }
 
 TTS: dict[str, Callable[[Config, Language], TTSService]] = {

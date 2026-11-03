@@ -13,6 +13,9 @@ from pipecat.frames.frames import (
     InterruptionFrame,
     LLMContextAssistantTurnFrame,
     LLMContextUserTurnFrame,
+    LLMThoughtEndFrame,
+    LLMThoughtStartFrame,
+    LLMThoughtTextFrame,
     MetricsFrame,
     VADUserStartedSpeakingFrame,
 )
@@ -42,6 +45,7 @@ class StudyLog(BaseObserver):
         self._bot_speaking = False
         self._barge_in_at: int | None = None
         self._interrupted = False
+        self._thought: list[str] = []
 
         self._turns = TurnTrackingObserver()
         self._turns.add_event_handler("on_turn_started", self._on_turn_started)
@@ -82,7 +86,7 @@ class StudyLog(BaseObserver):
         self._file.close()
 
     async def on_push_frame(self, data: FramePushed):
-        """Pick out the frames the study needs: what was said by whom, tool calls, usage, and the moments of a barge-in."""
+        """Pick out the frames the study needs: what was said by whom, what the LLM thought, tool calls, usage, and the moments of a barge-in."""
         frame = data.frame
         # A frame broadcast both ways arrives twice under two ids, so only its upstream copy is read.
         if frame.broadcast_sibling_id is not None and data.direction == FrameDirection.DOWNSTREAM:
@@ -92,6 +96,13 @@ class StudyLog(BaseObserver):
             self.write("user_transcript", text=frame.text)
         elif isinstance(frame, LLMContextAssistantTurnFrame):
             self.write("assistant_message", text=frame.text)
+        elif isinstance(frame, LLMThoughtStartFrame):
+            self._thought = []
+        elif isinstance(frame, LLMThoughtTextFrame):
+            self._thought.append(frame.text)
+        elif isinstance(frame, LLMThoughtEndFrame):
+            self.write("llm_thought", text="".join(self._thought))
+            self._thought = []
         elif isinstance(frame, FunctionCallResultFrame):
             self.write(
                 "tool_call",
