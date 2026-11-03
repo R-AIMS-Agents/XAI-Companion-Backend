@@ -31,10 +31,10 @@ def test_every_event_the_client_sends_has_a_reaction():
     assert lab.REACTIONS.keys() == EVENTS
 
 
-def test_the_first_recipe_loads_silently_and_later_ones_do_not():
-    """The opening already introduced the first compound, so only later ones are announced."""
+def test_storing_a_compound_announces_the_next_and_loading_one_is_silent():
+    """Unity sends recipe_loaded only for the first compound, before the agent connects, so the next compound is announced on stored."""
     assert lab.reaction({"event": "recipe_loaded", "recipe": {"index": 0}}) is Reaction.SILENT
-    assert lab.reaction({"event": "recipe_loaded", "recipe": {"index": 1}}) is Reaction.WHEN_IDLE
+    assert lab.reaction({"event": "stored", "recipe": {"index": 1}}) is Reaction.WHEN_IDLE
 
 
 def test_finishing_the_protocol_interrupts():

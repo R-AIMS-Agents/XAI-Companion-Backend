@@ -38,6 +38,7 @@ During the intro the participant may already handle the equipment. Every snapsho
   - `recipe` carries `index` (from 0), `count`, `product`, `mixed`, `flask`, `station`, `ingredients` with `fetched` and `poured` each, `steps` (`flask_placed`, `combined`, `on_station`, `finished`) and `status` (`place_flask`, `awaiting_components`, `wrong_flask`, `wrong_mixture`, `place_on_station`, `wrong_station`, `store`, `complete`).
   - Flasks: `erlenmeyer`, `beaker`, `round_bottom`, and `reagent`, the small conical bottles on the endless-refill reagent shelf. Stations: `bunsen_burner` (heating), `magnetic_stirrer` (mixing), `ice_bath` (cooling).
   - A substance is `{name, code, color}` or null, with `color` as a name, in English in every session.
+  - `recipe_loaded` is sent only for the first compound, before the agent connects, so it is dropped. `stored` carries the next compound in `recipe`.
   - The last compound ends with `game_complete` instead of `stored`; its snapshot still describes that compound, with `complete: true`.
 - What Iva knows of an event expires: ten seconds after the newest snapshot, it stays in her context with `event` and `detail` set to null.
 
@@ -48,9 +49,8 @@ How each reaction behaves is in `ARCHITECTURE.md`. Until `start_task`, every eve
 | Event | Reaction |
 |---|---|
 | `state` | silent |
-| `recipe_loaded` | when idle; silent for index 0, which starting the task covers |
-| `flask_placed`, `ingredient_fetched`, `ingredient_poured`, `combined`, `finished`, `flask_emptied` | when idle |
+| `flask_placed`, `ingredient_fetched`, `ingredient_poured`, `combined`, `finished`, `stored`, `flask_emptied` | when idle |
 | `wrong_flask`, `wrong_ingredient`, `wrong_mixture`, `wrong_station` | when idle |
-| `placed_on_station`, `stored` | silent |
+| `recipe_loaded`, `placed_on_station` | silent |
 | `game_complete` | interrupt |
 | anything else | when idle, with a logged warning |

@@ -21,7 +21,7 @@ from pipecat.frames.frames import (
     UserStoppedSpeakingFrame,
 )
 from pipecat.observers.base_observer import BaseObserver, FramePushed
-from pipecat.services.llm_service import FunctionCallParams
+from pipecat.services.llm_service import FunctionCallParams, LLMService
 from pipecat.utils.utils import obj_id
 
 from agent.observability.study_log import StudyLog
@@ -156,7 +156,7 @@ class Game(BaseObserver):
             self._user_speaking = True
         elif isinstance(frame, UserStoppedSpeakingFrame):
             self._user_speaking = False
-        elif isinstance(frame, LLMContextFrame):
+        elif isinstance(frame, LLMContextFrame) and isinstance(data.destination, LLMService):
             self._replying = True
             # A run built on a context that already holds the snapshot answers it, so the held reaction is settled.
             if self._entered is not None and frame.id > self._entered:

@@ -16,7 +16,7 @@ GREETING = {
 # The reaction to every event the client sends, once the intro is over.
 REACTIONS = {
     "state": Reaction.SILENT,
-    "recipe_loaded": Reaction.WHEN_IDLE,
+    "recipe_loaded": Reaction.SILENT,
     "flask_placed": Reaction.WHEN_IDLE,
     "wrong_flask": Reaction.WHEN_IDLE,
     "ingredient_fetched": Reaction.WHEN_IDLE,
@@ -28,16 +28,14 @@ REACTIONS = {
     "placed_on_station": Reaction.SILENT,
     "wrong_station": Reaction.WHEN_IDLE,
     "finished": Reaction.WHEN_IDLE,
-    "stored": Reaction.SILENT,
+    "stored": Reaction.WHEN_IDLE,
     "game_complete": Reaction.INTERRUPT,
 }
 
 
 def reaction(snapshot: dict[str, Any]) -> Reaction:
-    """Look up what an event makes the tutor do; the first recipe's load is silent, since starting the task already introduced it."""
+    """Look up what an event makes the tutor do, reacting when idle to an event the table does not know."""
     event = snapshot.get("event")
-    if event == "recipe_loaded" and (snapshot.get("recipe") or {}).get("index") == 0:
-        return Reaction.SILENT
     if event not in REACTIONS:
         logger.warning(f"Unknown game event '{event}', reacting when idle")
         return Reaction.WHEN_IDLE

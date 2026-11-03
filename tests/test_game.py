@@ -20,6 +20,7 @@ from pipecat.frames.frames import (
 from pipecat.observers.base_observer import FramePushed
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.frame_processor import FrameDirection
+from pipecat.services.llm_service import LLMService
 
 from agent import game as game_module
 from agent.game import HEADER, STARTED, Game, Reaction
@@ -125,12 +126,12 @@ async def opened(game, worker):
     return game
 
 
-async def _push(game: Game, frame):
-    """Show the game one frame moving through the pipeline."""
+async def _push(game: Game, frame, destination=None):
+    """Show the game one frame moving through the pipeline, to the given processor or a stand-in."""
     await game.on_push_frame(
         FramePushed(
             source=_Processor(),
-            destination=_Processor(),
+            destination=destination or _Processor(),
             frame=frame,
             direction=FrameDirection.DOWNSTREAM,
             timestamp=0,
@@ -198,9 +199,14 @@ async def test_events_while_busy_collapse_into_one_run(opened, worker):
     assert worker.snapshots() == [_snapshot("when_idle", index=2)]
 
 
+async def _run(game: Game, frame: LLMContextFrame):
+    """Show the game a context going to the LLM, which starts a reply."""
+    await _push(game, frame, LLMService())
+
+
 async def test_a_reply_not_yet_heard_keeps_the_agent_busy(opened, worker):
     """Between the LLM finishing and the voice starting, the agent is still about to speak, so a reaction waits for it."""
-    await _push(opened, LLMContextFrame(context=LLMContext()))
+    await _run(opened, LLMContextFrame(context=LLMContext()))
     await _push(opened, LLMTextFrame(text="Well done."))
     await _push(opened, LLMFullResponseEndFrame())
     await opened.receive(_snapshot("when_idle"))
@@ -215,7 +221,7 @@ async def test_a_reply_not_yet_heard_keeps_the_agent_busy(opened, worker):
 
 async def test_a_reply_with_nothing_to_say_frees_the_agent(opened, worker):
     """A reply with no text is never heard, so the agent is idle again once the LLM finishes."""
-    await _push(opened, LLMContextFrame(context=LLMContext()))
+    await _run(opened, LLMContextFrame(context=LLMContext()))
     await opened.receive(_snapshot("when_idle"))
     await _push(opened, LLMFullResponseEndFrame())
     await asyncio.sleep(SETTLE_S)
@@ -228,7 +234,7 @@ async def test_a_user_turn_after_the_snapshot_settles_the_reaction(opened, worke
     await _push(opened, UserStartedSpeakingFrame())
     await opened.receive(_snapshot("when_idle"))
     await _push(opened, UserStoppedSpeakingFrame())
-    await _push(opened, LLMContextFrame(context=LLMContext()))
+    await _run(opened, LLMContextFrame(context=LLMContext()))
     await _push(opened, LLMFullResponseEndFrame())
     await asyncio.sleep(SETTLE_S)
 
@@ -239,8 +245,33 @@ async def test_a_run_begun_before_the_snapshot_entered_does_not_settle_it(opened
     """A reply built on the context before the snapshot arrived knows nothing of it, so the reaction still follows."""
     earlier = LLMContextFrame(context=LLMContext())
     await opened.receive(_snapshot("when_idle"))
-    await _push(opened, earlier)
+    await _run(opened, earlier)
     await _push(opened, LLMFullResponseEndFrame())
+    await asyncio.sleep(SETTLE_S)
+
+    assert worker.runs() == 1
+
+
+async def test_the_context_committed_after_a_reply_leaves_the_agent_idle(opened, worker):
+    """The assistant aggregator pushes the context on after the bot has spoken, in the order a session sees it, and that is no new reply."""
+    await _run(opened, LLMContextFrame(context=LLMContext()))
+    await _push(opened, LLMTextFrame(text="Set the flask on top of it."))
+    await _push(opened, LLMFullResponseEndFrame())
+    await _push(opened, BotStartedSpeakingFrame())
+    await _push(opened, BotStoppedSpeakingFrame())
+    await _push(opened, LLMContextFrame(context=LLMContext()))
+    await opened.receive(_snapshot("when_idle"))
+    await asyncio.sleep(SETTLE_S)
+
+    assert worker.runs() == 1
+
+
+async def test_the_context_committed_after_the_snapshot_does_not_settle_it(opened, worker):
+    """A context the assistant aggregator pushes on after the snapshot entered never reaches the LLM, so the reaction still follows."""
+    await _push(opened, BotStartedSpeakingFrame())
+    await opened.receive(_snapshot("when_idle"))
+    await _push(opened, BotStoppedSpeakingFrame())
+    await _push(opened, LLMContextFrame(context=LLMContext()))
     await asyncio.sleep(SETTLE_S)
 
     assert worker.runs() == 1
