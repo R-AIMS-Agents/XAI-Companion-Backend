@@ -43,6 +43,10 @@ async def main():
     study_path = roster.session_path(run.participant)
     log_path = debug_log.start(study_path.stem)
     study = StudyLog(study_path)
+    language = Language(run.language)
+    stt = catalog.STT[run.stt](cfg, language)
+    llm = catalog.LLM[run.llm](cfg)
+    tts = catalog.TTS[run.tts](cfg, language)
     # Written to the study log and sent to the client from this one dict, so the two cannot disagree about what the session is.
     settings = {
         "participant": run.participant,
@@ -54,6 +58,9 @@ async def main():
         "stt": run.stt,
         "llm": run.llm,
         "tts": run.tts,
+        "stt_model": stt.settings.model,
+        "llm_model": llm.settings.model,
+        "tts_model": tts.settings.model,
         "commit": _commit(),
     }
     study.write("session_start", **settings)
@@ -77,14 +84,13 @@ async def main():
         logger.info(f"Room '{cfg.room}' on {cfg.livekit_url}")
         logger.info(f"Client connection details on port {join.PORT} at {join.PATH}")
 
-        language = Language(run.language)
         scenario = scenarios.SCENARIOS[run.scenario]
         worker = PipelineWorker(
             pipeline.build(
                 transport,
-                catalog.STT[run.stt](cfg, language),
-                catalog.LLM[run.llm](cfg),
-                catalog.TTS[run.tts](cfg, language),
+                stt,
+                llm,
+                tts,
                 scenario.system_prompt(run.language),
             ),
             params=PipelineParams(

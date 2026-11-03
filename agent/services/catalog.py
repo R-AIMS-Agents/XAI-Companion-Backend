@@ -1,6 +1,7 @@
 """The set of model services a session can be assembled from, one name per implementation.
 
 One factory per provider, bound to a model by the registry beneath it, so a further model of a provider already present costs a line.
+Every model is pinned to a snapshot, never a moving alias, so a provider cannot swap the model under a running study.
 Every factory imports its provider inside the function, so selecting one model never loads another's dependencies.
 """
 
@@ -82,14 +83,14 @@ def _kokoro(config: Config, language: Language, voice: str) -> TTSService:
 
 
 STT: dict[str, Callable[[Config, Language], STTService]] = {
-    "voxtral": partial(_mistral_stt, model="voxtral-mini-realtime-latest"),
+    "voxtral": partial(_mistral_stt, model="voxtral-mini-transcribe-realtime-3-0"),
     "whisper-turbo": partial(_whisper, model="deepdml/faster-whisper-large-v3-turbo-ct2"),
     "nemotron": _nemotron,
 }
 
 LLM: dict[str, Callable[[Config], LLMService]] = {
-    "mistral-small": partial(_mistral_llm, model="mistral-small-latest"),
-    "mistral-medium": partial(_mistral_llm, model="mistral-medium-latest"),
+    "mistral-small": partial(_mistral_llm, model="mistral-small-2603"),
+    "mistral-large": partial(_mistral_llm, model="mistral-large-4-0"),
 }
 
 TTS: dict[str, Callable[[Config, Language], TTSService]] = {
