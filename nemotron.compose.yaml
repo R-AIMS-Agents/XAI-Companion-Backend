@@ -1,0 +1,35 @@
+# Nemotron streaming ASR as a local NVIDIA NIM, for `--stt nemotron`. Needs NGC_API_KEY in the environment and `docker login nvcr.io`.
+# Build once, which exports the model and exits (each run rebuilds from scratch):  docker compose -f nemotron.compose.yaml run --rm nemotron-export
+# Serve from the export on every later start:     docker compose -f nemotron.compose.yaml up -d nemotron
+
+x-nemotron: &nemotron
+  image: nvcr.io/nim/nvidia/nemotron-asr-streaming:latest
+  shm_size: 8gb
+  environment: &nemotron-env
+    NGC_API_KEY: ${NGC_API_KEY}
+    NIM_TAGS_SELECTOR: name=nemotron-asr-streaming,type=multi,batch_size=32
+    NIM_EXPORT_PATH: /opt/nim/export
+  volumes:
+    - ${USERPROFILE}/nim_export:/opt/nim/export
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+services:
+  nemotron-export:
+    <<: *nemotron
+    profiles: [export]
+
+  nemotron:
+    <<: *nemotron
+    container_name: nemotron-asr-streaming
+    environment:
+      <<: *nemotron-env
+      NIM_DISABLE_MODEL_DOWNLOAD: "true"
+    ports:
+      - "50051:50051"
+      - "9000:9000"

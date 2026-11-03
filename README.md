@@ -20,6 +20,14 @@ Windows, with [uv](https://docs.astral.sh/uv/) installed. uv fetches Python 3.14
 
 3. Download `livekit-server.exe` from the [LiveKit releases](https://github.com/livekit/livekit/releases) into the project root. The agent starts it when nothing listens on `LIVEKIT_URL` yet.
 
+4. Optional, for `--stt nemotron`: a local NVIDIA NIM container from `nemotron.compose.yaml`, which needs Docker Desktop, an NVIDIA GPU and an [NGC API key](https://org.ngc.nvidia.com/setup/api-keys). Put `NGC_API_KEY` in `.env`, log in with `docker login nvcr.io` (user `$oauthtoken`, the key as password), then build the model once:
+
+   ```powershell
+   docker compose -f nemotron.compose.yaml run --rm nemotron-export
+   ```
+
+   This takes about 15 minutes and writes the built model to `%USERPROFILE%\nim_export`. Run it only once: it rebuilds from scratch each time, and the build only barely fits an 8 GB GPU, so close Unity and the headset software first. From then on the dialog starts the container as soon as `nemotron` is selected, or the agent does at the start of a scripted run. It takes about 40 s and stays running for the next session.
+
 ## Running
 
 ### Interactive
@@ -42,7 +50,7 @@ uv run python -m agent.run `
     --participant test `
     --language en `
     --scenario chat `
-    --stt voxtral `
+    --stt nemotron `
     --llm mistral-small `
     --tts elevenlabs-flash
 ```

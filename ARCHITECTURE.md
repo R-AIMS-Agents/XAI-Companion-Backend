@@ -4,7 +4,7 @@ What the code does not say in one place: how data flows, where each configuratio
 
 ## Data flow
 
-A run starts by settling the session: `config.load` reads the environment, `session.resolve` takes the command line and opens the dialog for whatever is left open, and `roster` picks the session's log file. Only then does the agent start the LiveKit server, if nothing answers on its port yet, and the token endpoint the client joins through.
+A run starts by settling the session: `config.load` reads the environment, `session.resolve` takes the command line and opens the dialog for whatever is left open, and `roster` picks the session's log file. Only then does the agent start the LiveKit server, if nothing answers on its port yet, and the token endpoint the client joins through. A session on the `nemotron` STT also has `nemotron_server` bring up its NIM container through Docker Compose and waits until it is serving. The dialog already starts it when `nemotron` is selected and shows its progress next to the STT field, so this is usually only the wait. Unlike the LiveKit server, the container is left running after the session, since it takes about 40 s to start.
 
 The pipeline runs in one direction:
 

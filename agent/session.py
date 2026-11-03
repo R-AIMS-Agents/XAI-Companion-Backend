@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from pipecat.transports.base_transport import BaseTransport
 
-from agent import roster, scenarios
+from agent import nemotron_server, roster, scenarios
 from agent.config import LANGUAGES, Config
 from agent.services import catalog
 from agent.transports import livekit
@@ -89,7 +89,9 @@ def resolve() -> Session:
         # Every field is shown once the dialog opens, so it reads as the session about to run rather than as a partial form.
         options = {"scenario": sorted(scenarios.SCENARIOS)}
         options |= {field: sorted(registry) for field, registry in FIELDS.items()}
-        picks = chooser.choose(LANGUAGES, options, picks, [roster.suggest(), roster.TEST], problem)
+        picks = chooser.choose(
+            LANGUAGES, options, picks, [roster.suggest(), roster.TEST], problem, {"stt": nemotron_server.hint}
+        )
     elif error := problem(picks):
         parser.error(error)
 

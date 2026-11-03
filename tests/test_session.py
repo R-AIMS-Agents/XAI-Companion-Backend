@@ -57,7 +57,7 @@ def _expect_no_dialog(monkeypatch):
 def _accept(asked=None):
     """Stand in for the dialog: record what it was asked and accept the preselection, as a person hitting Start would."""
 
-    def fake_choose(languages, options, defaults, suggested, problem):
+    def fake_choose(languages, options, defaults, suggested, problem, hints):
         if asked is not None:
             asked.update(languages=languages, options=options, defaults=defaults, suggested=suggested)
         return {**defaults, "participant": defaults["participant"] or suggested[0]}
@@ -128,7 +128,7 @@ def test_the_real_catalog_defaults_to_the_documented_stack(monkeypatch):
 
     run = session.resolve()
 
-    assert (run.stt, run.llm, run.tts) == ("voxtral", "mistral-small", "elevenlabs-flash")
+    assert (run.stt, run.llm, run.tts) == ("nemotron", "mistral-small", "elevenlabs-flash")
     assert run.language == "en"
 
 
@@ -264,7 +264,7 @@ def test_the_dialog_is_given_the_same_check(monkeypatch, catalogue):
     monkeypatch.setattr(sys, "argv", ["run.py"])
     asked = {}
 
-    def fake_choose(languages, options, defaults, suggested, problem):
+    def fake_choose(languages, options, defaults, suggested, problem, hints):
         asked["problem"] = problem
         return {**defaults, "participant": suggested[0]}
 

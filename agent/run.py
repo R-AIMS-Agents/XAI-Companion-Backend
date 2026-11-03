@@ -9,7 +9,7 @@ from pipecat.pipeline.worker import PipelineParams, PipelineWorker
 from pipecat.transcriptions.language import Language
 from pipecat.workers.runner import WorkerRunner
 
-from agent import config, join, livekit_server, pipeline, roster, scenarios, session, world
+from agent import config, join, livekit_server, nemotron_server, pipeline, roster, scenarios, session, world
 from agent.config import AUDIO_IN, AUDIO_OUT
 from agent.game import Game
 from agent.observability import debug_log
@@ -63,8 +63,10 @@ async def main():
     try:
         transport = session.TRANSPORTS[run.transport](cfg, run.vision)
 
-        # The server comes up after the dialog, so a cancelled selection never leaves one running.
+        # The server comes up after the dialog, so a cancelled selection never leaves one running. The Nemotron container may already be on its way up from the dialog and is only awaited here.
         server = await livekit_server.ensure(cfg)
+        if run.stt == nemotron_server.STT:
+            await nemotron_server.ensure()
         endpoint = await join.serve(cfg)
 
         logger.info(f"Study log at {study_path}")

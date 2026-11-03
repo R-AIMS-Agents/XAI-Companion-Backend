@@ -1,6 +1,7 @@
 """A dialog that asks the operator to fill in whatever the command line left open."""
 
 import sys
+import threading
 import tkinter as tk
 from collections.abc import Callable
 from tkinter import ttk
@@ -9,6 +10,7 @@ import sv_ttk
 
 # Windows 11 paints the title bar light unless the window opts in, which leaves a white band above a dark dialog.
 DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+WATCH_MS = 500
 
 
 def _darken_title_bar(root: tk.Tk):
@@ -38,12 +40,32 @@ def _centre(root: tk.Tk):
     root.geometry(f"+{x}+{y}")
 
 
+def _watch(root: tk.Tk, note: ttk.Label, variable: tk.StringVar, describe: Callable[[str], str]):
+    """Keep a field's note current while the dialog is open, asking in a background thread so a slow answer never freezes the dialog."""
+    answers: list[str] = []
+    worker: threading.Thread | None = None
+
+    def tick():
+        """Show the latest answer and ask again about the field's current value."""
+        nonlocal worker
+        if answers:
+            note.configure(text=answers.pop())
+        if worker is None or not worker.is_alive():
+            value = variable.get()
+            worker = threading.Thread(target=lambda: answers.append(describe(value)), daemon=True)
+            worker.start()
+        root.after(WATCH_MS, tick)
+
+    tick()
+
+
 def choose(
     languages: dict[str, str],
     options: dict[str, list[str]],
     defaults: dict[str, str],
     suggested: list[str],
     problem: Callable[[dict[str, str]], str | None],
+    hints: dict[str, Callable[[str], str]],
 ) -> dict[str, str]:
     """Ask for the participant, the language and one value per field and return the picks, ending the run when the dialog is dismissed."""
     root = tk.Tk()
@@ -93,8 +115,13 @@ def choose(
         box.grid(row=row, column=1, columnspan=span, sticky="ew", pady=6)
         variables[field] = variable
 
+        if field in hints:
+            note = ttk.Label(frame, foreground="#9a9a9a")
+            note.grid(row=row, column=span + 1, sticky="w", padx=(12, 0), pady=6)
+            _watch(root, note, variable, hints[field])
+
     message = ttk.Label(frame, foreground="#ff6b6b", wraplength=320)
-    message.grid(row=len(options) + 2, column=0, columnspan=span + 1, sticky="w", pady=(12, 0))
+    message.grid(row=len(options) + 2, column=0, columnspan=span + 2, sticky="w", pady=(12, 0))
 
     # Values are read before the interpreter is torn down, because a Tk variable cannot be read afterwards.
     picks: dict[str, str] = {}
@@ -109,7 +136,7 @@ def choose(
         root.destroy()
 
     button = ttk.Button(frame, text="Start", command=accept, style="Accent.TButton")
-    button.grid(row=len(options) + 3, column=0, columnspan=span + 1, pady=(12, 0), sticky="ew")
+    button.grid(row=len(options) + 3, column=0, columnspan=span + 2, pady=(12, 0), sticky="ew")
 
     # Focus rests on the button, so a read-only combobox does not open the dialog with a selection highlight on it.
     button.focus_set()

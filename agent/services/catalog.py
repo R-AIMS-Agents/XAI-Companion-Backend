@@ -42,6 +42,18 @@ def _whisper(config: Config, language: Language, model: str) -> STTService:
     return WhisperSTTService(settings=WhisperSTTService.Settings(model=model, language=language))
 
 
+def _nemotron(config: Config, language: Language) -> STTService:
+    """Build Nemotron streaming ASR served by a local NVIDIA NIM container, which needs no credential."""
+    from pipecat.services.nvidia.stt import NvidiaSTTService
+
+    return NvidiaSTTService(
+        server="localhost:50051",
+        use_ssl=False,
+        model_function_map={"function_id": "", "model_name": "nemotron-asr-streaming"},
+        settings=NvidiaSTTService.Settings(language=language),
+    )
+
+
 def _mistral_llm(config: Config, model: str) -> LLMService:
     """Build one of Mistral's chat models."""
     from pipecat.services.mistral.llm import MistralLLMService
@@ -72,6 +84,7 @@ def _kokoro(config: Config, language: Language, voice: str) -> TTSService:
 STT: dict[str, Callable[[Config, Language], STTService]] = {
     "voxtral": partial(_mistral_stt, model="voxtral-mini-realtime-latest"),
     "whisper-turbo": partial(_whisper, model="deepdml/faster-whisper-large-v3-turbo-ct2"),
+    "nemotron": _nemotron,
 }
 
 LLM: dict[str, Callable[[Config], LLMService]] = {
@@ -88,4 +101,4 @@ TTS: dict[str, Callable[[Config, Language], TTSService]] = {
 TTS_LANGUAGES = {"elevenlabs-flash": {"en", "de"}, "kokoro": {"en"}}
 
 # What a run uses when the operator names nothing, stated here rather than left to the order the registries happen to be in.
-DEFAULTS = {"stt": "voxtral", "llm": "mistral-small", "tts": "elevenlabs-flash"}
+DEFAULTS = {"stt": "nemotron", "llm": "mistral-small", "tts": "elevenlabs-flash"}
