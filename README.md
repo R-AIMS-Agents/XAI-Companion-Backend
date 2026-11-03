@@ -57,7 +57,7 @@ uv run python -m agent.run `
 
 ### Without Unity
 
-`tools.local_client` lets you talk to the agent through the local microphone and speakers without Unity. It currently works with the `chat` scenario only: `lab` opens on Unity's first game snapshot, which the local client never sends. Start the XAI-Companion first, then the client in a second terminal:
+`tools.local_client` lets you talk to the agent through the local microphone and speakers without Unity. It currently works with the `chat` scenario only: `lab` opens on Unity's first game snapshot, which the local client never sends. If no agent is running, the client starts one in a new console with `--scenario chat --participant dev`, and the dialog asks for the rest:
 
 ```powershell
 uv run python -m tools.local_client

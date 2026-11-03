@@ -1,11 +1,13 @@
 """Local stand-in for the Unity client: talk to a running agent through this PC's microphone and speakers, and follow the conversation in the console.
 
-Joins under its own identity, so the LiveKit logs never mistake it for the headset. Echo cancellation keeps the agent from hearing itself through the speakers.
+Joins under its own identity, so the LiveKit logs never mistake it for the headset. Echo cancellation keeps the agent from hearing itself through the speakers. Starts the agent in a console of its own when none is running.
 """
 
 import asyncio
 import json
+import subprocess
 import sys
+from pathlib import Path
 
 import aiohttp
 from livekit import rtc
@@ -20,6 +22,8 @@ ENDPOINT = f"http://localhost:{PORT}{PATH}"
 IDENTITY = "local"
 TRACK_NAME = "microphone"
 AGENT_WAIT_SECS = 30.0
+AGENT_COMMAND = [sys.executable, "-m", "agent.run", "--scenario", "chat", "--participant", "dev"]
+POLL_SECS = 0.5
 
 
 async def connection_details(identity: str) -> dict:
@@ -28,6 +32,32 @@ async def connection_details(identity: str) -> dict:
         async with session.post(ENDPOINT, json={"participant_identity": identity}) as response:
             response.raise_for_status()
             return await response.json()
+
+
+async def _listening() -> bool:
+    """Tell whether something accepts connections on the agent's endpoint port."""
+    try:
+        _, writer = await asyncio.open_connection("localhost", PORT)
+    except OSError:
+        return False
+    writer.close()
+    await writer.wait_closed()
+    return True
+
+
+async def ensure_agent() -> bool:
+    """Start the agent in a new console when nothing listens on its endpoint, and wait until it does; False when the agent exited before it got there."""
+    if await _listening():
+        return True
+    logger.info("No agent running, starting one in a new console")
+    process = subprocess.Popen(
+        AGENT_COMMAND, cwd=Path(__file__).resolve().parent.parent, creationflags=subprocess.CREATE_NEW_CONSOLE
+    )
+    while not await _listening():
+        if process.poll() is not None:
+            return False
+        await asyncio.sleep(POLL_SECS)
+    return True
 
 
 def client_ready(name: str) -> bytes:
@@ -133,7 +163,10 @@ async def _run() -> None:
 
 
 async def main():
-    """Run one conversation with the agent."""
+    """Run one conversation with the agent, starting it first if needed."""
+    if not await ensure_agent():
+        logger.error("The agent exited before its endpoint came up.")
+        sys.exit(1)
     try:
         await _run()
     except aiohttp.ClientError as error:
