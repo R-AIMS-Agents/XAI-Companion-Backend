@@ -1,10 +1,11 @@
-"""Mistral's thinking reaches the pipeline as thought frames, its answer as text, and the voice never hears the thinking."""
+"""Mistral's thinking reaches the pipeline as thought frames, its answer as text, and the voice never hears the thinking; a request ending on a tool result goes out as it is."""
 
 from openai.types.chat import ChatCompletionChunk
 from openai.types.chat.chat_completion_chunk import Choice, ChoiceDelta
 from pipecat.frames.frames import LLMThoughtEndFrame, LLMThoughtStartFrame, LLMThoughtTextFrame
+from pipecat.processors.aggregators.llm_context import LLMContext
 
-from agent.services.mistral_llm import ThinkingMistralLLMService
+from agent.services.mistral_llm import ThinkingMistralLLMService, ToolResultMistralLLMAdapter
 
 
 def _thinking(text: str) -> list[dict]:
@@ -85,3 +86,33 @@ async def test_a_stream_that_ends_while_thinking_still_ends_the_thought_and_clos
     pushed, _, stream = await _run([_chunk(_thinking("Hmm"))])
     assert isinstance(pushed[-1], LLMThoughtEndFrame)
     assert stream.closed
+
+
+# A conversation the LLM answered with a tool call, its result now last.
+AFTER_TOOL_CALL = [
+    {"role": "system", "content": "You are Iva."},
+    {"role": "user", "content": "Yes, I'm ready."},
+    {"role": "assistant", "tool_calls": [{"id": "abcdefghi", "type": "function", "function": {"name": "start_task", "arguments": "{}"}}]},
+    {"role": "tool", "tool_call_id": "abcdefghi", "content": '{"started": true}'},
+]
+
+
+async def _sent(messages: list[dict]) -> list[dict]:
+    """Return the messages the service's adapter would send for a context."""
+    adapter = ThinkingMistralLLMService.adapter_class()
+    params = await adapter.get_llm_invocation_params(LLMContext(messages=messages), convert_developer_to_user=True)
+    return [dict(message) for message in params["messages"]]
+
+
+async def test_a_request_after_a_tool_result_ends_on_the_result():
+    """Mistral answers a final tool result on its own, and Large 4 refuses the blank assistant prefix Pipecat would append."""
+    assert ThinkingMistralLLMService.adapter_class is ToolResultMistralLLMAdapter
+    sent = await _sent(AFTER_TOOL_CALL)
+    assert sent[-1]["role"] == "tool"
+    assert not any(message.get("prefix") for message in sent)
+
+
+async def test_a_tool_result_followed_by_a_user_line_keeps_its_bridging_reply():
+    """Mistral does reject a tool result followed directly by a user message, so the adapter's bridge there stays."""
+    sent = await _sent([*AFTER_TOOL_CALL, {"role": "user", "content": "Like this?"}])
+    assert [message["role"] for message in sent[-3:]] == ["tool", "assistant", "user"]
