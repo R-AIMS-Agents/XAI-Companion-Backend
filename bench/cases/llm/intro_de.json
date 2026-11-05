@@ -20,7 +20,7 @@
       {"id": "asks_for_code", "judge": "Does the reply acknowledge that the flask is on the plate and invite the participant to read out the first reagent code, without naming any reagent itself?"}
     ]},
     {"say": "Da steht K zwei.", "expect": [
-      {"id": "names_reagent", "mentions": ["Flame", "rot"]}
+      {"id": "names_reagent", "mentions": ["Flamme", "rot"]}
     ]}
   ],
   "expect": [
