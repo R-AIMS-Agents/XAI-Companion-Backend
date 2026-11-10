@@ -53,11 +53,13 @@ def attach(worker: PipelineWorker, greeting: str | None, study: StudyLog, settin
     # The worker answers bot-ready on this event itself, so a second handler here would put two of them on the wire. Handlers run as separate tasks, so the settings and bot-ready reach the client in either order.
     @worker.rtvi.event_handler("on_client_ready")
     async def opening(rtvi):
-        """Tell the client the session's settings, then speak the scenario's fixed greeting if it has one, so every session opens with the same words."""
+        """Tell the client the session's settings, watch for the game's first snapshot in a scenario with a game, then speak the scenario's fixed greeting if it has one, so every session opens with the same words."""
         version = ".".join(str(part) for part in rtvi.client_version)
         logger.info(f"Client ready, RTVI {version}")
         study.write("client_ready", rtvi_version=version)
         await rtvi.send_server_message({"t": SESSION, "d": settings})
+        if game is not None:
+            game.expect_start()
         if greeting is not None:
             await worker.queue_frame(TTSSpeakFrame(text=greeting))
 

@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from enum import Enum
 from typing import Any
 
+from loguru import logger
 from pipecat.adapters.llm.schemas.function_schema import FunctionSchema
 from pipecat.frames.frames import (
     BotStartedSpeakingFrame,
@@ -34,6 +35,9 @@ GRACE_S = 0.3
 
 # How long an event stays what just happened. After that the snapshot stays in the context with its event and detail cleared.
 EVENT_TIMEOUT_S = 10.0
+
+# How long after the session message the client's first snapshot may take before a warning says the agent is still waiting for it.
+START_WAIT_S = 5.0
 
 # Offered to the LLM in a session with an intro, which ends when the agent calls it.
 START_TASK = FunctionSchema(
@@ -75,6 +79,7 @@ class Game(BaseObserver):
         self._latest: dict[str, Any] | None = None
         self._expiry: asyncio.TimerHandle | None = None
         self._expiring: asyncio.Task | None = None
+        self._waiting: asyncio.TimerHandle | None = None
         self._intro = intro
         # A session with an intro has already opened with its greeting, so its first snapshot is no opening.
         self._opened = intro
@@ -90,6 +95,9 @@ class Game(BaseObserver):
 
     async def receive(self, snapshot: dict[str, Any]):
         """Put a snapshot into the context in place of the previous one and act on its event; during an intro nothing acts on it, and otherwise the session's first snapshot opens the conversation."""
+        if self._waiting is not None:
+            self._waiting.cancel()
+            self._waiting = None
         if self._intro:
             reaction = Reaction.SILENT
             label = "intro"
@@ -118,6 +126,17 @@ class Game(BaseObserver):
         """End the intro, so the reaction table applies from here on, and hand the LLM a result to continue the task from."""
         self._intro = False
         await params.result_callback(STARTED)
+
+    def expect_start(self):
+        """Warn once if no snapshot arrives within START_WAIT_S, since the client sends one as soon as it has the session message."""
+        if self._waiting is not None:
+            self._waiting.cancel()
+        self._waiting = asyncio.get_running_loop().call_later(START_WAIT_S, self._still_waiting)
+
+    def _still_waiting(self):
+        """Say that the client has not sent its first snapshot yet."""
+        self._waiting = None
+        logger.warning(f"No game state from the client {START_WAIT_S:g} s after the session message, still waiting")
 
     def _arm_expiry(self):
         """Start the newest event's timeout over."""

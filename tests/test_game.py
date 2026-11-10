@@ -5,6 +5,7 @@ import json
 
 import pytest
 
+from loguru import logger
 from pipecat.frames.frames import (
     BotStartedSpeakingFrame,
     BotStoppedSpeakingFrame,
@@ -392,3 +393,32 @@ async def test_starting_the_task_twice_changes_nothing(intro, worker):
 
     assert first.results == second.results == [STARTED]
     assert worker.runs() == 0
+
+
+@pytest.fixture
+def warnings():
+    """The messages of every warning logged during the test."""
+    lines = []
+    sink_id = logger.add(lines.append, format="{message}", level="WARNING")
+    yield lines
+    logger.remove(sink_id)
+
+
+async def test_a_missing_start_signal_is_warned_about_once(monkeypatch, game, warnings):
+    """With no snapshot after the session message, one warning says the agent is still waiting."""
+    monkeypatch.setattr(game_module, "START_WAIT_S", TIMEOUT_S)
+    game.expect_start()
+    await asyncio.sleep(TIMEOUT_S * 2.5)
+
+    assert len(warnings) == 1
+    assert "still waiting" in warnings[0]
+
+
+async def test_a_start_signal_in_time_is_not_warned_about(monkeypatch, game, warnings):
+    """A snapshot before the wait is over cancels the warning."""
+    monkeypatch.setattr(game_module, "START_WAIT_S", TIMEOUT_S)
+    game.expect_start()
+    await game.receive(_snapshot("silent"))
+    await asyncio.sleep(TIMEOUT_S * 1.5)
+
+    assert warnings == []
