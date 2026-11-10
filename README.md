@@ -1,8 +1,8 @@
-# XAI-Companion
+# XAI-Companion-Backend
 
-**A study platform for transparent, trustworthy AI Agents in XR.**
+**An Intelligent Virtual Agent (IVA) pipeline built for developing and studying trustworthy IVAs in XR.**
 
-Backend for an Intelligent Virtual Agent, an embodied AI human in VR/AR, built as a reusable platform for user studies on transparent and explainable agents in XR. Pipecat orchestrates the AI models; LiveKit carries audio and data to a Unity client, which is a separate project.
+Python backend of the XAI Companion, an embodied AI agent in VR/AR. Pipecat orchestrates the AI models; LiveKit carries audio and data to the Unity client in [XAI-Companion-XR](https://github.com/R-AIMS-Agents/XAI-Companion-XR).
 
 ![The Unity client exchanges audio and data with the Pipecat agent through the LiveKit server; the agent writes the session logs.](docs/overview.svg)
 
@@ -36,7 +36,7 @@ Windows, with [uv](https://docs.astral.sh/uv/) installed. uv fetches Python 3.14
 uv run python -m agent.run
 ```
 
-A dialog asks for participant ID, language, scenario and models.
+A dialog asks for participant ID, language, scenario and models. With the Rocketbox demo from XAI-Companion-XR, pick the `chat` scenario: `lab` greets and chats, but its task runs on game snapshots, which the demo does not send.
 
 > [!NOTE]
 > IDs of the form `P` and a number, such as `P04`, count as study participants. Any other ID, such as `test`, is for development.
@@ -57,7 +57,7 @@ uv run python -m agent.run `
 
 ### Without Unity
 
-`tools.local_client` lets you talk to the agent through the local microphone and speakers without Unity. It currently works with the `chat` scenario only: `lab` opens on Unity's first game snapshot, which the local client never sends. If no agent is running, the client starts one in a new console with `--scenario chat --participant dev`, and the dialog asks for the rest:
+`tools.local_client` lets you talk to the agent through the local microphone and speakers without Unity. It currently works with the `chat` scenario only: `lab` greets and chats, but its task runs on Unity's game snapshots, which the local client never sends. If no agent is running, the client starts one in a new console with `--scenario chat --participant dev`, and the dialog asks for the rest:
 
 ```powershell
 uv run python -m tools.local_client
