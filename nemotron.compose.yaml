@@ -2,6 +2,8 @@
 # Build once, which exports the model and exits (each run rebuilds from scratch):  docker compose -f nemotron.compose.yaml run --rm nemotron-export
 # Serve from the export on every later start:     docker compose -f nemotron.compose.yaml up -d nemotron
 
+name: triva-nemotron
+
 x-nemotron: &nemotron
   image: nvcr.io/nim/nvidia/nemotron-asr-streaming:latest
   shm_size: 8gb
