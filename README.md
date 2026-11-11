@@ -57,7 +57,7 @@ uv run python -m agent.run `
 
 ### Without Unity
 
-`tools.local_client` lets you talk to the agent through the local microphone and speakers without Unity. It currently works with the `chat` scenario only: `lab` greets and chats, but its task runs on Unity's game snapshots, which the local client never sends. If no agent is running, the client starts one in a new console with `--scenario chat --participant dev`, and the dialog asks for the rest:
+`tools.local_client` lets you talk to the agent through the local microphone and speakers without Unity. Like the Rocketbox demo, it sends no game snapshots, so pick the `chat` scenario. If no agent is running, the client starts one in a new console with `--scenario chat --participant dev`, and the dialog asks for the rest:
 
 ```powershell
 uv run python -m tools.local_client
@@ -65,13 +65,21 @@ uv run python -m tools.local_client
 
 ### Logs
 
-Each session writes a study log and a debug log under `logs/`.
+Each session writes a study log and a debug log under `logs/`. What each holds is in [`ARCHITECTURE.md`](ARCHITECTURE.md#logs).
 
 ### Tests
 
-- `uv run pytest`
+The unit tests need nothing running:
 
-- `tests/test_live_client.py` checks the Unity protocol against a running agent: token, handshake and camera track. Run with `uv run pytest -m live`
+```powershell
+uv run pytest
+```
+
+`tests/test_live_client.py` checks the Unity protocol against a running agent: token, handshake and camera track.
+
+```powershell
+uv run pytest -m live
+```
 
 ### Benchmarks
 

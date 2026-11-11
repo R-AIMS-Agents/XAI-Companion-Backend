@@ -22,6 +22,7 @@ Observers watch the pipeline without being part of it: `Timeline` and `LLMExchan
 
 A scenario with a game adds `Game` (`agent/game.py`), an observer that also queues frames. It turns each game snapshot from the client into the LLM context and decides when the agent speaks about it:
 
+- The client sends its first snapshot once it has the `session` message. If none arrives within 5 s (`START_WAIT_S`), the debug log warns once that the agent is still waiting.
 - Only the newest snapshot is in the context, swapped in place of the previous one and appended last, as a developer message headed as a game-state update the participant did not say. Mistral receives it as a user message.
 - An event expires: 10 s after the newest snapshot (`EVENT_TIMEOUT_S`), it is swapped in again with `event` and `detail` set to null, so the agent does not take an old event for what just happened. A reaction still held keeps its event until it has run. Expiry is not a client event and appears only in the debug log's LLM contexts.
 - A scenario without a greeting opens on the session's first snapshot. A scenario with a greeting opens on it and runs an intro: every snapshot enters the context, none is reacted to, and the study log labels it `intro`. The intro ends when the LLM calls `start_task`, the one tool, offered only then; its result runs the LLM again, which starts the task from the newest snapshot.
