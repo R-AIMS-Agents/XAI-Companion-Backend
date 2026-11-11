@@ -128,7 +128,7 @@ def test_the_real_catalog_defaults_to_the_documented_stack(monkeypatch):
 
     run = session.resolve()
 
-    assert (run.stt, run.llm, run.tts) == ("nemotron", "mistral-small", "elevenlabs-flash")
+    assert (run.stt, run.llm, run.tts) == ("whisper-turbo", "mistral-small", "elevenlabs-flash")
     assert run.language == "en"
 
 

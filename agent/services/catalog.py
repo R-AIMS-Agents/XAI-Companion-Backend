@@ -103,4 +103,4 @@ TTS: dict[str, Callable[[Config, Language], TTSService]] = {
 TTS_LANGUAGES = {"elevenlabs-flash": {"en", "de"}, "kokoro": {"en"}}
 
 # What a run uses when the operator names nothing, stated here rather than left to the order the registries happen to be in.
-DEFAULTS = {"stt": "nemotron", "llm": "mistral-small", "tts": "elevenlabs-flash"}
+DEFAULTS = {"stt": "whisper-turbo", "llm": "mistral-small", "tts": "elevenlabs-flash"}

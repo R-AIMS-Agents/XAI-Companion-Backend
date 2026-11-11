@@ -71,10 +71,14 @@ async def main():
         transport = session.TRANSPORTS[run.transport](cfg, run.vision)
 
         # The server comes up after the dialog, so a cancelled selection never leaves one running. The Nemotron container may already be on its way up from the dialog and is only awaited here.
-        server = await livekit_server.ensure(cfg)
-        if run.stt == nemotron_server.STT:
-            await nemotron_server.ensure()
-        endpoint = await join.serve(cfg)
+        try:
+            server = await livekit_server.ensure(cfg)
+            if run.stt == nemotron_server.STT:
+                await nemotron_server.ensure()
+            endpoint = await join.serve(cfg)
+        except RuntimeError as error:
+            logger.error(str(error))
+            raise SystemExit(1) from None
 
         logger.info(f"Study log at {study_path}")
         logger.info(f"Debug log at {log_path}")
