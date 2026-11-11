@@ -2,7 +2,7 @@
 
 **An Intelligent Virtual Agent (IVA) pipeline built for developing and studying trustworthy IVAs in XR.**
 
-Python backend of TrIVA, an embodied AI agent in VR/AR. Pipecat orchestrates the AI models; LiveKit carries audio and data to the Unity client in [TrIVA-Unity](https://github.com/TrIVAs/TrIVA-Unity).
+Python backend of TrIVA, an embodied AI agent in VR/AR. Pipecat orchestrates the AI models; LiveKit carries audio and data to the Unity client in [TrIVA-Unity](https://github.com/TrIVAs-XR/TrIVA-Unity).
 
 ![The Unity client exchanges audio and data with the Pipecat agent through the LiveKit server; the agent writes the session logs.](docs/overview.svg)
 
