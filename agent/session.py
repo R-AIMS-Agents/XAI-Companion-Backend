@@ -35,7 +35,7 @@ class Session:
 
 def _parser() -> argparse.ArgumentParser:
     """Describe the command line, leaving unset anything the operator may be asked for instead."""
-    parser = argparse.ArgumentParser(description="Run the XAI-Companion agent.")
+    parser = argparse.ArgumentParser(description="Run the TrIVA agent.")
     parser.add_argument("--transport", choices=sorted(TRANSPORTS), default="livekit")
     parser.add_argument(
         "--vision",

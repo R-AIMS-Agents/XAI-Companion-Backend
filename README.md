@@ -1,8 +1,8 @@
-# XAI-Companion-Backend
+# TrIVA-Backend
 
 **An Intelligent Virtual Agent (IVA) pipeline built for developing and studying trustworthy IVAs in XR.**
 
-Python backend of the XAI Companion, an embodied AI agent in VR/AR. Pipecat orchestrates the AI models; LiveKit carries audio and data to the Unity client in [XAI-Companion-XR](https://github.com/R-AIMS-Agents/XAI-Companion-XR).
+Python backend of TrIVA, an embodied AI agent in VR/AR. Pipecat orchestrates the AI models; LiveKit carries audio and data to the Unity client in [TrIVA-Unity](https://github.com/TrIVAs/TrIVA-Unity).
 
 ![The Unity client exchanges audio and data with the Pipecat agent through the LiveKit server; the agent writes the session logs.](docs/overview.svg)
 
@@ -36,7 +36,7 @@ Windows, with [uv](https://docs.astral.sh/uv/) installed. uv fetches Python 3.14
 uv run python -m agent.run
 ```
 
-A dialog asks for participant ID, language, scenario and models. With the Rocketbox demo from XAI-Companion-XR, pick the `chat` scenario: `lab` greets and chats, but its task runs on game snapshots, which the demo does not send.
+A dialog asks for participant ID, language, scenario and models. With the Rocketbox demo from TrIVA-Unity, pick the `chat` scenario: `lab` greets and chats, but its task runs on game snapshots, which the demo does not send.
 
 > [!NOTE]
 > IDs of the form `P` and a number, such as `P04`, count as study participants. Any other ID, such as `test`, is for development.

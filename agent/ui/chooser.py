@@ -69,7 +69,7 @@ def choose(
 ) -> dict[str, str]:
     """Ask for the participant, the language and one value per field and return the picks, ending the run when the dialog is dismissed."""
     root = tk.Tk()
-    root.title("XAI-Companion")
+    root.title("TrIVA")
     root.resizable(False, False)
     # Kept above every other window, so the dialog cannot get lost behind the terminal or the Unity editor.
     root.attributes("-topmost", True)
