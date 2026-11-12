@@ -4,6 +4,8 @@
 
 Python backend of TrIVA, an embodied AI agent in VR/AR. Pipecat orchestrates the AI models; LiveKit carries audio and data to the Unity client in [TrIVA-Unity](https://github.com/TrIVAs-XR/TrIVA-Unity).
 
+Besides audio, agent and client exchange messages over the LiveKit data channel in Pipecat's RTVI format: speaking and transcription events that drive the avatar, the session settings, the agent's thoughts, and custom client messages such as game events and metrics. The message types are in the [Unity contract](ARCHITECTURE.md#unity-contract).
+
 ![The Unity client exchanges audio and data with the Pipecat agent through the LiveKit server; the agent writes the session logs.](docs/overview.svg)
 
 ## Setup
